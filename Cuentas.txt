@@ -1,0 +1,13 @@
+[01/06/2026 14:32:10] Alejandro: Buenas! Ya listos para el viaje?
+[01/06/2026 14:35:15] Bea: Sí! Qué ganas. Nos vemos en el aeropuerto.
+[01/06/2026 18:12:00] Carlos: He pagado la fianza del coche de alquiler: 150€
+[01/06/2026 21:30:22] David: Cena de hoy en el puerto: 85.50 eur
+[02/06/2026 09:15:00] Elena: Desayunos en la cafetería: 22.40€
+[02/06/2026 13:45:12] Alejandro: Gasolina coche 1: 52 eur
+[02/06/2026 17:30:45] Bea: Compra super: 64.80 euros para las cenas
+[03/06/2026 11:20:10] Carlos: Entradas museo: 45 €
+[03/06/2026 14:50:35] David: Autopista peaje: 12.80€
+[03/06/2026 16:00:00] Alejandro: Chicos, ¿quién tiene las llaves?
+[03/06/2026 16:02:11] Elena: Las tengo yo!
+[03/06/2026 22:10:00] Elena: Yo pagué las cervezas de la terraza: 35€
+[04/06/2026 10:00:00] Alejandro: Parking del hotel: 18€
