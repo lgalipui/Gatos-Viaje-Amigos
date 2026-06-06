@@ -438,6 +438,7 @@ function updateAppUI() {
 
     // 3b. Tarjeta de saldos y balances (Balances Tab)
     renderBalancesList(balances);
+    renderBalancesChart(balances);
 
     // 4. Propuesta de pagos (Liquidación Tab)
     renderSettlementsList(transactions);
@@ -612,6 +613,81 @@ function renderBalancesList(balances) {
             </div>
         `;
         container.appendChild(memberRow);
+    });
+}
+
+/**
+ * Renderiza la representación gráfica con bolas (bubble chart) de los saldos
+ */
+function renderBalancesChart(balances) {
+    const container = document.getElementById("chart-balances-bubbles");
+    if (!container) return;
+
+    if (members.size === 0) {
+        container.style.display = "none";
+        container.innerHTML = "";
+        return;
+    }
+
+    container.style.display = "flex";
+    container.innerHTML = "";
+
+    // Calcular el balance absoluto máximo para escalar
+    let maxAbsBalance = 0;
+    const memberBalances = [];
+
+    members.forEach(member => {
+        const bal = balances[member] || 0;
+        const absBal = Math.abs(bal);
+        if (absBal > maxAbsBalance) {
+            maxAbsBalance = absBal;
+        }
+        memberBalances.push({ member, bal, absBal });
+    });
+
+    // Ordenar de mayor balance absoluto a menor (para una mejor distribución visual)
+    memberBalances.sort((a, b) => b.absBal - a.absBal);
+
+    const minSize = 90; // px
+    const maxSize = 170; // px
+
+    memberBalances.forEach(({ member, bal, absBal }) => {
+        // Calcular tamaño de la bola
+        let size = minSize;
+        if (maxAbsBalance > 0) {
+            size = minSize + (absBal / maxAbsBalance) * (maxSize - minSize);
+        }
+
+        // Determinar clase y signo
+        let statusClass = "neu";
+        let sign = "";
+        if (bal > 0.019) {
+            statusClass = "pos";
+            sign = "+";
+        } else if (bal < -0.019) {
+            statusClass = "neg";
+            sign = "";
+        }
+
+        // Calcular tamaños de fuente proporcionales
+        const nameFontSize = Math.max(11, Math.min(15, 11 + (size - minSize) * 0.05));
+        const amountFontSize = Math.max(12, Math.min(22, 12 + (size - minSize) * 0.12));
+
+        const bubble = document.createElement("div");
+        bubble.className = `balance-bubble ${statusClass}`;
+        bubble.style.width = `${size}px`;
+        bubble.style.height = `${size}px`;
+        
+        // Usar title para mostrar el nombre completo y saldo detallado al pasar el ratón
+        const formattedBal = bal.toFixed(2);
+        bubble.title = `${member}: ${bal > 0 ? '+' : ''}${formattedBal}€`;
+
+        bubble.innerHTML = `
+            <div class="bubble-name" style="font-size: ${nameFontSize}px;">${escapeHTML(member)}</div>
+            <div class="bubble-amount" style="font-size: ${amountFontSize}px;">${sign}${formattedBal}€</div>
+        `;
+
+        container.appendChild(bubble);
     });
 }
 
