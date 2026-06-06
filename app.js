@@ -65,6 +65,9 @@ async function initApp() {
     } else {
         await fetchChatFile();
     }
+
+    // Comprobar si hay un viaje compartido en el hash de la URL
+    checkUrlHashTrip();
 }
 
 /**
@@ -937,6 +940,35 @@ function setupEventListeners() {
             showToast("Datos vaciados. Inicia de cero.", "info");
         }
     });
+
+    // Abrir Modal de Compartir
+    document.getElementById("btn-share-options").addEventListener("click", () => {
+        openModal("modal-share");
+    });
+
+    // Cerrar Modal de Compartir
+    document.getElementById("btn-close-share").addEventListener("click", () => closeModal("modal-share"));
+    document.getElementById("btn-cancel-share").addEventListener("click", () => closeModal("modal-share"));
+
+    // Copiar Enlace Compartido
+    document.getElementById("btn-generate-link").addEventListener("click", generateShareLink);
+
+    // Exportar JSON
+    document.getElementById("btn-export-json").addEventListener("click", exportToJSON);
+
+    // Importar JSON (Trigger)
+    const jsonFileInput = document.getElementById("input-import-json");
+    document.getElementById("btn-trigger-import-json").addEventListener("click", () => {
+        jsonFileInput.click();
+    });
+
+    // Procesar archivo JSON cargado
+    jsonFileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+            importFromJSON(e.target.files[0]);
+            e.target.value = ""; // Limpiar input para permitir cargar el mismo archivo
+        }
+    });
 }
 
 /**
@@ -1268,4 +1300,186 @@ function escapeHTML(str) {
             default: return m;
         }
     });
+}
+
+// ==========================================================================
+// COMPARTIR Y EXPORTAR (SIN BBDD) - FUNCIONES AUXILIARES
+// ==========================================================================
+
+/**
+ * Minifica el JSON del estado para optimizar el tamaño de la URL
+ */
+function minifyState(membersList, expensesList) {
+    const minifiedExpenses = expensesList.map(e => ({
+        d: e.description,
+        a: e.amount,
+        t: e.date,
+        p: e.payer,
+        m: e.participants
+    }));
+    return {
+        u: membersList,
+        e: minifiedExpenses
+    };
+}
+
+/**
+ * Descomprime el estado minificado de vuelta a su formato original
+ */
+function magnifyState(minState) {
+    const magnifiedExpenses = minState.e.map((e, idx) => ({
+        id: `shared-${idx}-${Date.now()}`,
+        description: e.d,
+        amount: e.a,
+        date: e.t,
+        payer: e.p,
+        participants: e.m,
+        isManual: true
+    }));
+    return {
+        members: new Set(minState.u),
+        expenses: magnifiedExpenses
+    };
+}
+
+/**
+ * Codificador Base64 UTF-8 seguro para emojis y acentos
+ */
+function safeB64Encode(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+        return String.fromCharCode('0x' + p1);
+    }));
+}
+
+/**
+ * Decodificador Base64 UTF-8 seguro
+ */
+function safeB64Decode(str) {
+    return decodeURIComponent(atob(str).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+}
+
+/**
+ * Genera el enlace y lo copia al portapapeles
+ */
+function generateShareLink() {
+    if (members.size === 0) {
+        showToast("Añade al menos un amigo para poder compartir", "warning");
+        return;
+    }
+    
+    const state = minifyState(Array.from(members), expenses);
+    const json = JSON.stringify(state);
+    
+    try {
+        const hash = safeB64Encode(json);
+        const shareLink = window.location.origin + window.location.pathname + '#trip=' + hash;
+        
+        navigator.clipboard.writeText(shareLink).then(() => {
+            showToast("¡Enlace de compartir copiado! Envíalo por WhatsApp.");
+            closeModal("modal-share");
+        }).catch(err => {
+            console.error("Error al copiar enlace", err);
+            prompt("Copia este enlace de compartir:", shareLink);
+            closeModal("modal-share");
+        });
+    } catch (e) {
+        console.error("Error al codificar el enlace", e);
+        showToast("Error al generar el enlace de compartir", "danger");
+    }
+}
+
+/**
+ * Exporta el viaje actual a un archivo JSON físico
+ */
+function exportToJSON() {
+    if (members.size === 0 && expenses.length === 0) {
+        showToast("No hay datos para exportar", "warning");
+        return;
+    }
+    
+    const state = {
+        members: Array.from(members),
+        expenses: expenses
+    };
+    const json = JSON.stringify(state, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gastos_viaje_${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Copia de seguridad descargada (JSON)");
+    closeModal("modal-share");
+}
+
+/**
+ * Importa el estado del viaje desde un archivo JSON físico
+ */
+function importFromJSON(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const state = JSON.parse(e.target.result);
+            if (state.members && state.expenses) {
+                expenses = state.expenses;
+                members = new Set(state.members);
+                completedSettlements.clear();
+                dataSource = "local";
+                saveToLocalStorage();
+                updateAppUI();
+                showToast("Datos importados con éxito");
+                closeModal("modal-share");
+            } else {
+                showToast("Formato de archivo JSON no válido", "danger");
+            }
+        } catch (err) {
+            console.error("Error parseando JSON importado", err);
+            showToast("Error al leer el archivo JSON", "danger");
+        }
+    };
+    reader.readAsText(file);
+}
+
+/**
+ * Revisa si la URL contiene datos codificados de un viaje compartido y los carga
+ */
+function checkUrlHashTrip() {
+    if (window.location.hash.startsWith("#trip=")) {
+        const hash = window.location.hash.substring(6); // quitar '#trip='
+        try {
+            const json = safeB64Decode(hash);
+            const minState = JSON.parse(json);
+            
+            if (minState.u && minState.e) {
+                const magnified = magnifyState(minState);
+                expenses = magnified.expenses;
+                members = magnified.members;
+                completedSettlements.clear();
+                dataSource = "local";
+                saveToLocalStorage();
+                updateAppUI();
+                window.history.replaceState(null, null, window.location.pathname);
+                showToast("Viaje cargado desde el enlace compartido");
+            } else if (minState.members && minState.expenses) {
+                expenses = minState.expenses;
+                members = new Set(minState.members);
+                completedSettlements.clear();
+                dataSource = "local";
+                saveToLocalStorage();
+                updateAppUI();
+                window.history.replaceState(null, null, window.location.pathname);
+                showToast("Viaje cargado desde el enlace compartido");
+            }
+        } catch (e) {
+            console.error("Error al cargar viaje desde el hash", e);
+            showToast("El enlace compartido no es válido o está dañado", "danger");
+        }
+    }
 }

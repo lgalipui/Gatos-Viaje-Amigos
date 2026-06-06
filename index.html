@@ -27,6 +27,16 @@
                     </div>
                 </div>
                 <div class="header-actions">
+                    <button id="btn-share-options" class="btn btn-secondary">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        <span>Compartir</span>
+                    </button>
                     <button id="btn-clear-all" class="btn btn-secondary">
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
@@ -38,7 +48,7 @@
                         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
                         </svg>
-                        <span>Cargar/Pegar Chat</span>
+                        <span>Cargar Chat</span>
                     </button>
                 </div>
             </div>
@@ -345,6 +355,61 @@
                     <button type="submit" class="btn btn-primary" id="btn-save-expense">Guardar</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal 3: Share and Backup Options -->
+    <div class="modal-overlay" id="modal-share">
+        <div class="modal glass-modal">
+            <div class="modal-header">
+                <h3>Compartir y Copias de Seguridad</h3>
+                <button class="btn-close" id="btn-close-share">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Share Link Section -->
+                <div class="share-section-card">
+                    <h4>🔗 Compartir Enlace (Sin BBDD)</h4>
+                    <p class="modal-help-text" style="margin-bottom: 12px;">
+                        Genera un enlace especial que contiene todos los amigos y gastos codificados. 
+                        Envíalo por WhatsApp y cualquiera que lo abra tendrá las cuentas sincronizadas en su móvil.
+                    </p>
+                    <button id="btn-generate-link" class="btn btn-primary btn-glow" style="width: 100%; margin-bottom: 20px;">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                        </svg>
+                        <span>Copiar Enlace de Compartir</span>
+                    </button>
+                </div>
+                
+                <hr class="modal-divider">
+
+                <!-- JSON Backup Section -->
+                <div class="share-section-card">
+                    <h4>💾 Archivos JSON (Copia de Seguridad)</h4>
+                    <p class="modal-help-text" style="margin-bottom: 12px;">
+                        Guarda una copia de seguridad en tu ordenador o importa un archivo guardado previamente.
+                    </p>
+                    <div class="grid-2-form">
+                        <button id="btn-export-json" class="btn btn-secondary" style="width: 100%;">
+                            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                            </svg>
+                            <span>Descargar JSON</span>
+                        </button>
+                        <button id="btn-trigger-import-json" class="btn btn-secondary" style="width: 100%;">
+                            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                            </svg>
+                            <span>Subir JSON</span>
+                        </button>
+                        <input type="file" id="input-import-json" accept=".json" style="display: none;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-cancel-share">Cerrar</button>
+            </div>
         </div>
     </div>
 
