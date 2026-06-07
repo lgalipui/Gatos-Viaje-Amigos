@@ -2065,3 +2065,38 @@ body.light-theme .type-filter-row {
 body.light-theme .type-filter-btn.active {
     box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
 }
+
+/* Payments details in breakdown */
+.settlement-detail-payments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    width: 100%;
+    border-top: 1px dashed var(--border-color);
+    padding-top: 6px;
+}
+
+.settlement-detail-payment-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.btn-undo-payment {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background-color var(--transition-fast);
+}
+.btn-undo-payment:hover {
+    background-color: var(--danger-bg);
+    text-decoration: underline;
+}

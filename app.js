@@ -1700,34 +1700,59 @@ function renderSettlementBreakdown(debtor, creditor, panel) {
             }
         } catch(e) {}
 
-        return `
-            <div class="settlement-detail-item" id="detail-item-${exp.id}">
-                <div class="settlement-detail-info">
-                    <span class="settlement-detail-desc">${escapeHTML(exp.description)}</span>
-                    <span class="settlement-detail-meta">
-                        Pagado por ${escapeHTML(exp.payer)} el ${dateLabel} • Total: ${exp.amount.toFixed(2)}€ (entre ${totalParticipants})
-                    </span>
-                </div>
-                <div class="settlement-detail-amount">
-                    <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                        <span class="settlement-detail-value">${remaining.toFixed(2)}€</span>
-                        <span class="balance-label">${isFullyPaid ? 'Liquidado' : `Tu parte: ${originalShare.toFixed(2)}€`}</span>
+        // Listar los pagos específicos realizados para este gasto para poder deshacerlos
+        let paymentsHTML = "";
+        if (payments.length > 0) {
+            paymentsHTML = `<div class="settlement-detail-payments-list">`;
+            payments.forEach(p => {
+                let pDateLabel = p.date;
+                try {
+                    const pDateParts = p.date.split("-");
+                    if (pDateParts.length === 3) {
+                        pDateLabel = `${pDateParts[2]}/${pDateParts[1]}`;
+                    }
+                } catch(e) {}
+                paymentsHTML += `
+                    <div class="settlement-detail-payment-row">
+                        <span>💸 Pago registrado: <strong>${p.amount.toFixed(2)}€</strong> (${pDateLabel})</span>
+                        <button class="btn-undo-payment" onclick="window.deletePaymentFromBreakdown('${p.id}', '${escapeHTML(debtor)}', '${escapeHTML(p.participants && p.participants[0] ? p.participants[0] : creditor)}', this)" title="Deshacer este pago y restaurar la deuda">Deshacer</button>
                     </div>
-                    
-                    ${!isFullyPaid ? `
-                        <div class="settlement-detail-actions">
-                            <button class="btn-detail-action edit-exp" onclick="window.openEditExpenseModal('${exp.id}')" title="Editar este gasto original">Editar</button>
-                            <button class="btn-detail-action pay-partial" onclick="window.showPartialPayForm('${exp.id}', '${escapeHTML(debtor)}', '${escapeHTML(exp.payer)}', this)" title="Pagar una parte de este gasto">Pagar Parte</button>
-                            <button class="btn-detail-action pay-total" onclick="window.settleExpensePartially('${exp.id}', '${escapeHTML(debtor)}', '${escapeHTML(exp.payer)}', ${remaining})" title="Liquidar totalmente tu parte">Pagar Todo</button>
+                `;
+            });
+            paymentsHTML += `</div>`;
+        }
+
+        return `
+            <div class="settlement-detail-item" id="detail-item-${exp.id}" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;">
+                    <div class="settlement-detail-info">
+                        <span class="settlement-detail-desc">${escapeHTML(exp.description)}</span>
+                        <span class="settlement-detail-meta">
+                            Pagado por ${escapeHTML(exp.payer)} el ${dateLabel} • Total: ${exp.amount.toFixed(2)}€ (entre ${totalParticipants})
+                        </span>
+                    </div>
+                    <div class="settlement-detail-amount">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                            <span class="settlement-detail-value">${remaining.toFixed(2)}€</span>
+                            <span class="balance-label">${isFullyPaid ? 'Liquidado' : `Tu parte: ${originalShare.toFixed(2)}€`}</span>
                         </div>
-                    ` : `
-                        <div class="settlement-detail-actions" style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
-                            <span class="status-indicator success" style="width: 8px; height: 8px; display: inline-block;"></span>
-                            <span style="font-size: 0.7rem; color: var(--success); font-weight: 600;">Pagado</span>
-                        </div>
-                    `}
-                    <div class="partial-pay-container" style="display: none; width: 100%;"></div>
+                        
+                        ${!isFullyPaid ? `
+                            <div class="settlement-detail-actions">
+                                <button class="btn-detail-action edit-exp" onclick="window.openEditExpenseModal('${exp.id}')" title="Editar este gasto original">Editar</button>
+                                <button class="btn-detail-action pay-partial" onclick="window.showPartialPayForm('${exp.id}', '${escapeHTML(debtor)}', '${escapeHTML(exp.payer)}', this)" title="Pagar una parte de este gasto">Pagar Parte</button>
+                                <button class="btn-detail-action pay-total" onclick="window.settleExpensePartially('${exp.id}', '${escapeHTML(debtor)}', '${escapeHTML(exp.payer)}', ${remaining})" title="Liquidar totalmente tu parte">Pagar Todo</button>
+                            </div>
+                        ` : `
+                            <div class="settlement-detail-actions" style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                                <span class="status-indicator success" style="width: 8px; height: 8px; display: inline-block;"></span>
+                                <span style="font-size: 0.7rem; color: var(--success); font-weight: 600;">Pagado</span>
+                            </div>
+                        `}
+                        <div class="partial-pay-container" style="display: none; width: 100%;"></div>
+                    </div>
                 </div>
+                ${paymentsHTML}
             </div>
         `;
     };
@@ -1835,4 +1860,21 @@ window.settleExpensePartially = function(expenseId, debtor, creditor, amount) {
     saveToLocalStorage();
     updateAppUI();
     showToast(`Registrado pago de ${amount.toFixed(2)}€ de ${debtor} a ${creditor}`);
+};
+
+/**
+ * Elimina un pago registrado y restaura la deuda correspondiente
+ */
+window.deletePaymentFromBreakdown = function(paymentId, debtor, creditor, btn) {
+    if (!confirm(`¿Seguro que quieres deshacer este pago y restaurar la deuda de ${debtor} con ${creditor}?`)) return;
+
+    const index = expenses.findIndex(e => e.id === paymentId);
+    if (index !== -1) {
+        expenses.splice(index, 1);
+        saveToLocalStorage();
+        updateAppUI();
+        showToast("Pago eliminado y deuda restaurada con éxito");
+    } else {
+        showToast("No se encontró el pago registrado", "danger");
+    }
 };
