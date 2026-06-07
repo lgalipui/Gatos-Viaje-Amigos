@@ -459,6 +459,12 @@ function updateAppUI() {
 
     // 6. Actualizar dropdowns del modal y filtros
     updateFilterDropdowns();
+
+    // 6b. Si la pestaña de auditoría está activa, actualizarla
+    const tabAudit = document.getElementById("tab-audit");
+    if (tabAudit && tabAudit.classList.contains("active")) {
+        renderAuditTab();
+    }
 }
 
 /**
@@ -914,6 +920,9 @@ function updateFilterDropdowns() {
     } else {
         filterSelect.value = "all";
     }
+
+    // También actualizar el selector de la pestaña de auditoría si existe
+    populateAuditSelect();
 }
 
 // ==========================================================================
@@ -934,6 +943,10 @@ function setupEventListeners() {
             btn.classList.add("active");
             const targetId = btn.dataset.target;
             document.getElementById(targetId).classList.add("active");
+            
+            if (targetId === "tab-audit") {
+                renderAuditTab();
+            }
         });
     });
 
@@ -1982,4 +1995,301 @@ window.setBalanceFilter = function(filterType) {
     renderBalancesList(filteredBalances);
     renderBalancesChart(filteredBalances);
 };
+
+/**
+ * Evento al cambiar el miembro seleccionado en la pestaña de resumen
+ */
+window.onAuditMemberChange = function(member) {
+    renderAuditTab(member);
+};
+
+/**
+ * Genera el selector de amigos para la pestaña de resumen
+ */
+function populateAuditSelect(selectedMember) {
+    const select = document.getElementById("select-audit-member");
+    if (!select) return;
+    
+    const sortedMembers = Array.from(members).sort();
+    if (sortedMembers.length === 0) {
+        select.innerHTML = '<option value="">Sin amigos</option>';
+        return;
+    }
+    
+    // Guardar el valor seleccionado actual o el preferido
+    const currentVal = selectedMember || select.value || sortedMembers[0];
+    
+    select.innerHTML = "";
+    sortedMembers.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (m === currentVal) {
+            opt.selected = true;
+        }
+        select.appendChild(opt);
+    });
+}
+
+/**
+ * Renderiza la pestaña Resumen por Persona
+ */
+function renderAuditTab(targetMember) {
+    const container = document.getElementById("audit-content-area");
+    if (!container) return;
+
+    if (members.size === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-emoji">👤</span>
+                <p>Añade amigos primero para ver su resumen individual.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Asegurar que el selector esté poblado y sincronizado
+    const select = document.getElementById("select-audit-member");
+    const activeMember = targetMember || (select ? select.value : null) || Array.from(members).sort()[0];
+    
+    if (select && select.value !== activeMember) {
+        populateAuditSelect(activeMember);
+    }
+
+    // Actualizar nombre del badge de cabecera
+    const badgeName = document.getElementById("badge-audit-name");
+    if (badgeName) {
+        badgeName.textContent = activeMember;
+    }
+
+    // Cálculos para el miembro seleccionado
+    const myPaidExpenses = [];
+    const myOwedExpenses = [];
+    const mySentPayments = [];
+    const myReceivedPayments = [];
+
+    let totalPaidToThird = 0; // Lo que ha pagado a terceros
+    let totalConsumed = 0;     // Su participación en gastos de otros y suyos
+
+    expenses.forEach(exp => {
+        const amount = exp.amount;
+        const payer = exp.payer;
+        const participants = exp.participants || [];
+
+        if (participants.length === 0) return;
+
+        if (exp.isPayment) {
+            // Pagos / Liquidaciones
+            if (payer === activeMember) {
+                mySentPayments.push(exp);
+            }
+            if (participants.includes(activeMember)) {
+                myReceivedPayments.push(exp);
+            }
+        } else {
+            // Gastos comunes
+            const share = amount / participants.length;
+            
+            if (payer === activeMember) {
+                totalPaidToThird += amount;
+                myPaidExpenses.push({
+                    expense: exp,
+                    share: share,
+                    creditGenerated: amount - share
+                });
+            }
+            
+            if (participants.includes(activeMember)) {
+                totalConsumed += share;
+                if (payer !== activeMember) {
+                    myOwedExpenses.push({
+                        expense: exp,
+                        share: share
+                    });
+                }
+            }
+        }
+    });
+
+    const expenseBalance = totalPaidToThird - totalConsumed;
+
+    const totalSentPayments = mySentPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalReceivedPayments = myReceivedPayments.reduce((sum, p) => sum + p.amount, 0);
+    const paymentBalance = totalSentPayments - totalReceivedPayments;
+
+    const finalBalance = expenseBalance + paymentBalance;
+
+    // Helper para formatear saldos con signos
+    const formatBalance = (val) => {
+        const sign = val > 0.019 ? "+" : "";
+        const statusClass = val > 0.019 ? "positive" : (val < -0.019 ? "negative" : "neutral");
+        return `<span class="audit-stat-value ${statusClass}">${sign}${val.toFixed(2)}€</span>`;
+    };
+
+    // Renderizar estadísticas de cabecera
+    let html = `
+        <div class="audit-summary-grid">
+            <div class="audit-stat-card">
+                <span class="audit-stat-title">Balance de Gastos</span>
+                ${formatBalance(expenseBalance)}
+                <span class="audit-stat-sub">Aportado: ${totalPaidToThird.toFixed(2)}€ • Consumido: ${totalConsumed.toFixed(2)}€</span>
+            </div>
+            <div class="audit-stat-card">
+                <span class="audit-stat-title">Balance de Pagos</span>
+                ${formatBalance(paymentBalance)}
+                <span class="audit-stat-sub">Enviado: ${totalSentPayments.toFixed(2)}€ • Recibido: ${totalReceivedPayments.toFixed(2)}€</span>
+            </div>
+            <div class="audit-stat-card">
+                <span class="audit-stat-title">Saldo Final Neto</span>
+                ${formatBalance(finalBalance)}
+                <span class="audit-stat-sub">${finalBalance > 0.019 ? 'A favor' : (finalBalance < -0.019 ? 'En contra' : 'Al día')}</span>
+            </div>
+        </div>
+    `;
+
+    // Renderizar secciones de detalle
+    html += `<div class="audit-sections-container">`;
+
+    // 1. Gastos que ha pagado
+    html += `
+        <div class="audit-section-box">
+            <div class="audit-section-header">
+                <span>Gastos que ha pagado (Generan saldo a favor)</span>
+                <span class="audit-badge">${myPaidExpenses.length}</span>
+            </div>
+            <div class="audit-list">
+    `;
+    if (myPaidExpenses.length === 0) {
+        html += `<div class="empty-state-small" style="padding: 10px;"><p>No ha pagado ningún gasto.</p></div>`;
+    } else {
+        myPaidExpenses.forEach(({ expense, share, creditGenerated }) => {
+            let dateLabel = expense.date;
+            try {
+                const parts = expense.date.split("-");
+                if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}`;
+            } catch(e) {}
+            html += `
+                <div class="audit-item">
+                    <div class="audit-item-info">
+                        <span class="audit-item-desc">${escapeHTML(expense.description)}</span>
+                        <span class="audit-item-meta">Fecha: ${dateLabel} • Total gasto: ${expense.amount.toFixed(2)}€</span>
+                    </div>
+                    <div class="audit-item-amount-wrapper">
+                        <span class="audit-item-value positive">+${creditGenerated.toFixed(2)}€</span>
+                        <span class="audit-item-sub">Tu parte: ${share.toFixed(2)}€</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += `</div></div>`; // Fin sección 1
+
+    // 2. Gastos de otros en los que participa
+    html += `
+        <div class="audit-section-box">
+            <div class="audit-section-header">
+                <span>Gastos de otros (Generan saldo en contra)</span>
+                <span class="audit-badge">${myOwedExpenses.length}</span>
+            </div>
+            <div class="audit-list">
+    `;
+    if (myOwedExpenses.length === 0) {
+        html += `<div class="empty-state-small" style="padding: 10px;"><p>No participa en gastos pagados por otros.</p></div>`;
+    } else {
+        myOwedExpenses.forEach(({ expense, share }) => {
+            let dateLabel = expense.date;
+            try {
+                const parts = expense.date.split("-");
+                if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}`;
+            } catch(e) {}
+            html += `
+                <div class="audit-item">
+                    <div class="audit-item-info">
+                        <span class="audit-item-desc">${escapeHTML(expense.description)}</span>
+                        <span class="audit-item-meta">Fecha: ${dateLabel} • Pagado por ${escapeHTML(expense.payer)} (${expense.amount.toFixed(2)}€)</span>
+                    </div>
+                    <div class="audit-item-amount-wrapper">
+                        <span class="audit-item-value negative">-${share.toFixed(2)}€</span>
+                        <span class="audit-item-sub">Deuda (tu parte)</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += `</div></div>`; // Fin sección 2
+
+    // 3. Liquidaciones que ha realizado (Bizums hechos)
+    html += `
+        <div class="audit-section-box">
+            <div class="audit-section-header">
+                <span>Bizums / Pagos que ha realizado</span>
+                <span class="audit-badge">${mySentPayments.length}</span>
+            </div>
+            <div class="audit-list">
+    `;
+    if (mySentPayments.length === 0) {
+        html += `<div class="empty-state-small" style="padding: 10px;"><p>No ha enviado ningún pago.</p></div>`;
+    } else {
+        mySentPayments.forEach(p => {
+            let dateLabel = p.date;
+            try {
+                const parts = p.date.split("-");
+                if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}`;
+            } catch(e) {}
+            const recipient = p.participants && p.participants[0] ? p.participants[0] : "Miembro";
+            html += `
+                <div class="audit-item">
+                    <div class="audit-item-info">
+                        <span class="audit-item-desc">${escapeHTML(p.description)}</span>
+                        <span class="audit-item-meta">Fecha: ${dateLabel} • Enviado a ${escapeHTML(recipient)}</span>
+                    </div>
+                    <div class="audit-item-amount-wrapper">
+                        <span class="audit-item-value positive">+${p.amount.toFixed(2)}€</span>
+                        <span class="audit-item-sub">Enviado</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += `</div></div>`; // Fin sección 3
+
+    // 4. Liquidaciones que le han hecho (Bizums recibidos)
+    html += `
+        <div class="audit-section-box">
+            <div class="audit-section-header">
+                <span>Bizums / Pagos que ha recibido</span>
+                <span class="audit-badge">${myReceivedPayments.length}</span>
+            </div>
+            <div class="audit-list">
+    `;
+    if (myReceivedPayments.length === 0) {
+        html += `<div class="empty-state-small" style="padding: 10px;"><p>No ha recibido ningún pago.</p></div>`;
+    } else {
+        myReceivedPayments.forEach(p => {
+            let dateLabel = p.date;
+            try {
+                const parts = p.date.split("-");
+                if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}`;
+            } catch(e) {}
+            html += `
+                <div class="audit-item">
+                    <div class="audit-item-info">
+                        <span class="audit-item-desc">${escapeHTML(p.description)}</span>
+                        <span class="audit-item-meta">Fecha: ${dateLabel} • Recibido de ${escapeHTML(p.payer)}</span>
+                    </div>
+                    <div class="audit-item-amount-wrapper">
+                        <span class="audit-item-value negative">-${p.amount.toFixed(2)}€</span>
+                        <span class="audit-item-sub">Recibido</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += `</div></div>`; // Fin sección 4
+
+    html += `</div>`; // Fin audit-sections-container
+
+    container.innerHTML = html;
+}
+
 
