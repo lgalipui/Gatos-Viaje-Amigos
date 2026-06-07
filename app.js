@@ -2687,6 +2687,351 @@ function renderAuditTab(targetMember) {
 }
 
 /**
+ * Exporta el resumen detallado de todos los miembros a PDF
+ */
+window.exportAuditToPDF = function() {
+    const printArea = document.getElementById("print-audit-report");
+    if (!printArea) return;
+
+    if (members.size === 0) {
+        showToast("No hay miembros cargados todavía para exportar.", "warning");
+        return;
+    }
+
+    // Título y fecha del reporte
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('es-ES', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    let printHTML = `
+        <div class="print-header">
+            <h1>Resumen General de Gastos y Liquidaciones</h1>
+            <p>Generado el ${formattedDate} • Aplicación Gatos Viaje Amigos</p>
+        </div>
+    `;
+
+    // Ordenar los miembros alfabéticamente
+    const sortedMembers = Array.from(members).sort();
+
+    sortedMembers.forEach(activeMember => {
+        const myPaidExpenses = [];
+        const myOwedExpenses = [];
+        const mySentPayments = [];
+        const myReceivedPayments = [];
+
+        let totalPaidToThird = 0;
+        let totalConsumed = 0;
+
+        expenses.forEach(exp => {
+            const amount = exp.amount;
+            const payer = exp.payer;
+            const participants = exp.participants || [];
+
+            if (participants.length === 0) return;
+
+            if (exp.isPayment) {
+                if (payer === activeMember) {
+                    mySentPayments.push(exp);
+                }
+                if (participants.includes(activeMember)) {
+                    myReceivedPayments.push(exp);
+                }
+            } else {
+                const share = amount / participants.length;
+                if (payer === activeMember) {
+                    totalPaidToThird += amount;
+                    myPaidExpenses.push({
+                        expense: exp,
+                        share: share,
+                        creditGenerated: amount - share
+                    });
+                }
+                if (participants.includes(activeMember)) {
+                    totalConsumed += share;
+                    if (payer !== activeMember) {
+                        myOwedExpenses.push({
+                            expense: exp,
+                            share: share
+                        });
+                    }
+                }
+            }
+        });
+
+        const expenseBalance = totalPaidToThird - totalConsumed;
+        const totalSentPayments = mySentPayments.reduce((sum, p) => sum + p.amount, 0);
+        const totalReceivedPayments = myReceivedPayments.reduce((sum, p) => sum + p.amount, 0);
+        const paymentBalance = totalSentPayments - totalReceivedPayments;
+        const finalBalance = expenseBalance + paymentBalance;
+
+        // Formateador de saldos
+        const formatPrintBalance = (val) => {
+            const sign = val > 0.019 ? "+" : "";
+            const colorClass = val > 0.019 ? "positive" : (val < -0.019 ? "negative" : "neutral");
+            return `<span class="print-stat-value ${colorClass}">${sign}${val.toFixed(2)}€</span>`;
+        };
+
+        printHTML += `
+            <div class="print-member-section">
+                <div class="print-member-title-box">
+                    <h2>Resumen de: ${escapeHTML(activeMember)}</h2>
+                </div>
+
+                <!-- Tarjetas de Balance -->
+                <div class="print-stats-grid">
+                    <div class="print-stat-card">
+                        <span class="print-stat-title">Balance de Gastos</span>
+                        ${formatPrintBalance(expenseBalance)}
+                        <span class="print-stat-sub">Pagado: ${totalPaidToThird.toFixed(2)}€<br>Consumido: ${totalConsumed.toFixed(2)}€</span>
+                    </div>
+                    <div class="print-stat-card">
+                        <span class="print-stat-title">Balance de Pagos</span>
+                        ${formatPrintBalance(paymentBalance)}
+                        <span class="print-stat-sub">Enviado: ${totalSentPayments.toFixed(2)}€<br>Recibido: ${totalReceivedPayments.toFixed(2)}€</span>
+                    </div>
+                    <div class="print-stat-card">
+                        <span class="print-stat-title">Saldo Final Neto</span>
+                        ${formatPrintBalance(finalBalance)}
+                        <span class="print-stat-sub" style="font-weight: 700;">
+                            ${finalBalance > 0.019 ? 'A favor (recibe dinero)' : (finalBalance < -0.019 ? 'En contra (debe dinero)' : 'Al día')}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 1. Gastos que ha pagado -->
+                <div class="print-section-box">
+                    <div class="print-section-title green-theme">1. Gastos que ha pagado (Generan saldo a favor)</div>
+        `;
+
+        if (myPaidExpenses.length === 0) {
+            printHTML += `<div class="print-empty-msg">No ha pagado ningún gasto.</div>`;
+        } else {
+            printHTML += `
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">Fecha</th>
+                            <th style="width: 55%">Concepto</th>
+                            <th style="width: 15%; text-align: right;">Total Gasto</th>
+                            <th style="width: 15%; text-align: right;">Saldo a Favor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            myPaidExpenses.forEach(({ expense, share, creditGenerated }) => {
+                let dateLabel = expense.date;
+                try {
+                    const parts = expense.date.split("-");
+                    if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                } catch(e) {}
+                printHTML += `
+                    <tr>
+                        <td>${dateLabel}</td>
+                        <td>${escapeHTML(expense.description)}</td>
+                        <td style="text-align: right;">${expense.amount.toFixed(2)}€</td>
+                        <td class="print-amount-col positive">+${creditGenerated.toFixed(2)}€</td>
+                    </tr>
+                `;
+            });
+            printHTML += `
+                    </tbody>
+                </table>
+            `;
+        }
+
+        printHTML += `
+                </div>
+
+                <!-- 2. Gastos de otros en los que participa -->
+                <div class="print-section-box">
+                    <div class="print-section-title red-theme">2. Gastos de otros en los que participa (Generan deuda)</div>
+        `;
+
+        if (myOwedExpenses.length === 0) {
+            printHTML += `<div class="print-empty-msg">No participa en gastos pagados por otros.</div>`;
+        } else {
+            printHTML += `
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">Fecha</th>
+                            <th style="width: 45%">Concepto</th>
+                            <th style="width: 25%">Pagado por</th>
+                            <th style="width: 15%; text-align: right;">Su Parte (Deuda)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            myOwedExpenses.forEach(({ expense, share }) => {
+                let dateLabel = expense.date;
+                try {
+                    const parts = expense.date.split("-");
+                    if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                } catch(e) {}
+                printHTML += `
+                    <tr>
+                        <td>${dateLabel}</td>
+                        <td>${escapeHTML(expense.description)}</td>
+                        <td>${escapeHTML(expense.payer)}</td>
+                        <td class="print-amount-col negative">-${share.toFixed(2)}€</td>
+                    </tr>
+                `;
+            });
+            printHTML += `
+                    </tbody>
+                </table>
+            `;
+        }
+
+        printHTML += `
+                </div>
+
+                <!-- 3. Pagos enviados -->
+                <div class="print-section-box">
+                    <div class="print-section-title green-theme">3. Bizums / Transferencias enviadas (Restan deuda)</div>
+        `;
+
+        if (mySentPayments.length === 0) {
+            printHTML += `<div class="print-empty-msg">No ha enviado ningún pago.</div>`;
+        } else {
+            printHTML += `
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">Fecha</th>
+                            <th style="width: 55%">Descripción / Comentario</th>
+                            <th style="width: 15%">Enviado a</th>
+                            <th style="width: 15%; text-align: right;">Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            mySentPayments.forEach(p => {
+                let dateLabel = p.date;
+                try {
+                    const parts = p.date.split("-");
+                    if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                } catch(e) {}
+                const recipient = p.participants && p.participants[0] ? p.participants[0] : "Miembro";
+                
+                let commentText = p.comment || "";
+                if (!commentText) {
+                    const desc = p.description || "";
+                    const openParen = desc.indexOf(' (');
+                    const closeParen = desc.lastIndexOf(')');
+                    if (openParen !== -1 && closeParen !== -1 && closeParen > openParen) {
+                        const comment = desc.substring(openParen + 2, closeParen);
+                        if (comment !== "Liquidación") {
+                            commentText = comment;
+                        }
+                    }
+                }
+                
+                let cleanDesc = p.description;
+                if (commentText) {
+                    cleanDesc = `Pago (${commentText})`;
+                } else if (p.expenseConcept) {
+                    cleanDesc = `Pago del gasto: "${p.expenseConcept}"`;
+                }
+
+                printHTML += `
+                    <tr>
+                        <td>${dateLabel}</td>
+                        <td>${escapeHTML(cleanDesc)}</td>
+                        <td>${escapeHTML(recipient)}</td>
+                        <td class="print-amount-col positive">+${p.amount.toFixed(2)}€</td>
+                    </tr>
+                `;
+            });
+            printHTML += `
+                    </tbody>
+                </table>
+            `;
+        }
+
+        printHTML += `
+                </div>
+
+                <!-- 4. Pagos recibidos -->
+                <div class="print-section-box">
+                    <div class="print-section-title red-theme">4. Bizums / Transferencias recibidas (Aumentan deuda)</div>
+        `;
+
+        if (myReceivedPayments.length === 0) {
+            printHTML += `<div class="print-empty-msg">No ha recibido ningún pago.</div>`;
+        } else {
+            printHTML += `
+                <table class="print-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%">Fecha</th>
+                            <th style="width: 55%">Descripción / Comentario</th>
+                            <th style="width: 15%">Recibido de</th>
+                            <th style="width: 15%; text-align: right;">Importe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            myReceivedPayments.forEach(p => {
+                let dateLabel = p.date;
+                try {
+                    const parts = p.date.split("-");
+                    if (parts.length === 3) dateLabel = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                } catch(e) {}
+                
+                let commentText = p.comment || "";
+                if (!commentText) {
+                    const desc = p.description || "";
+                    const openParen = desc.indexOf(' (');
+                    const closeParen = desc.lastIndexOf(')');
+                    if (openParen !== -1 && closeParen !== -1 && closeParen > openParen) {
+                        const comment = desc.substring(openParen + 2, closeParen);
+                        if (comment !== "Liquidación") {
+                            commentText = comment;
+                        }
+                    }
+                }
+                
+                let cleanDesc = p.description;
+                if (commentText) {
+                    cleanDesc = `Cobro (${commentText})`;
+                } else if (p.expenseConcept) {
+                    cleanDesc = `Cobro del gasto: "${p.expenseConcept}"`;
+                }
+
+                printHTML += `
+                    <tr>
+                        <td>${dateLabel}</td>
+                        <td>${escapeHTML(cleanDesc)}</td>
+                        <td>${escapeHTML(p.payer)}</td>
+                        <td class="print-amount-col negative">-${p.amount.toFixed(2)}€</td>
+                    </tr>
+                `;
+            });
+            printHTML += `
+                    </tbody>
+                </table>
+            `;
+        }
+
+        printHTML += `
+                </div>
+            </div>
+        `;
+    });
+
+    printArea.innerHTML = printHTML;
+
+    // Trigger window.print
+    window.print();
+}
+
+/**
  * Rellena los dropdowns del formulario de liquidación manual
  */
 function populateSettleDropdowns() {

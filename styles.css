@@ -2455,4 +2455,183 @@ body.light-theme .settlement-history-item:hover {
     justify-content: flex-end;
 }
 
+/* Print Media Queries for PDF Export */
+@media print {
+    /* Hide everything on the page by default */
+    body * {
+        visibility: hidden !important;
+        background: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Only show the print report container and its children */
+    #print-audit-report,
+    #print-audit-report * {
+        visibility: visible !important;
+    }
+
+    /* Position the print container at the top left */
+    #print-audit-report {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        color: #000000 !important;
+        background: #ffffff !important;
+        font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Header Styling */
+    .print-header {
+        text-align: center;
+        border-bottom: 2px solid #333333;
+        padding-bottom: 12px;
+        margin-bottom: 30px;
+    }
+    .print-header h1 {
+        font-size: 1.8rem;
+        margin: 0 0 6px 0;
+        color: #111111;
+        font-weight: 700;
+    }
+    .print-header p {
+        font-size: 0.9rem;
+        margin: 0;
+        color: #666666;
+    }
+
+    /* Individual Member Section */
+    .print-member-section {
+        page-break-after: always;
+        padding: 10px 0;
+    }
+    .print-member-section:last-child {
+        page-break-after: avoid;
+    }
+
+    .print-member-title-box {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #dddddd;
+        padding-bottom: 8px;
+        margin-bottom: 15px;
+    }
+    .print-member-title-box h2 {
+        font-size: 1.4rem;
+        margin: 0;
+        color: #111111;
+        font-weight: 700;
+    }
+
+    /* Summary Stats Grid */
+    .print-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    .print-stat-card {
+        border: 1px solid #cccccc;
+        border-radius: 6px;
+        padding: 10px 12px;
+        background: #fafafa !important;
+        text-align: center;
+    }
+    .print-stat-title {
+        display: block;
+        font-size: 0.75rem;
+        color: #555555;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .print-stat-value {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+    .print-stat-value.positive {
+        color: #15803d !important;
+    }
+    .print-stat-value.negative {
+        color: #b91c1c !important;
+    }
+    .print-stat-value.neutral {
+        color: #374151 !important;
+    }
+    .print-stat-sub {
+        display: block;
+        font-size: 0.7rem;
+        color: #666666;
+    }
+
+    /* Section lists */
+    .print-section-box {
+        margin-bottom: 20px;
+        page-break-inside: avoid;
+    }
+    .print-section-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #374151;
+        background: #f3f4f6 !important;
+        padding: 6px 10px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        border-left: 3px solid #4f46e5;
+    }
+    .print-section-title.red-theme {
+        border-left-color: #ef4444;
+    }
+    .print-section-title.green-theme {
+        border-left-color: #22c55e;
+    }
+    
+    .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 5px;
+    }
+    .print-table th {
+        text-align: left;
+        font-size: 0.75rem;
+        color: #555555;
+        padding: 4px 8px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .print-table td {
+        font-size: 0.8rem;
+        padding: 6px 8px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .print-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .print-empty-msg {
+        font-size: 0.8rem;
+        color: #888888;
+        font-style: italic;
+        padding: 4px 8px;
+    }
+
+    .print-amount-col {
+        text-align: right;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .print-amount-col.positive {
+        color: #15803d !important;
+    }
+    .print-amount-col.negative {
+        color: #b91c1c !important;
+    }
+}
+
+
 
