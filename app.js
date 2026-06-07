@@ -1796,20 +1796,32 @@ function renderSettlementBreakdown(debtor, creditor, panel) {
         }
     });
 
-    // Calcular créditos de debtor por gastos pagados por él
+    // Calcular créditos de debtor por gastos pagados por él y recolectarlos en una lista
     let totalCreditFromMyPayments = 0;
+    const creditExpenses = [];
     expenses.forEach(exp => {
         if (!exp.isPayment && exp.payer === debtor && exp.participants) {
-            const share = exp.amount / exp.participants.length;
-            if (exp.participants.includes(debtor)) {
-                totalCreditFromMyPayments += (exp.amount - share);
-            } else {
-                totalCreditFromMyPayments += exp.amount;
-            }
+            const totalParticipants = exp.participants.length;
+            if (totalParticipants === 0) return;
+            const originalShare = exp.amount / totalParticipants;
+            const participates = exp.participants.includes(debtor);
+            const baseCredit = participates ? (exp.amount - originalShare) : exp.amount;
+
             // Restar pagos recibidos de otros para este gasto (si los hubiera)
             const payments = expenses.filter(p => p.relatedExpenseId === exp.id && p.participants && p.participants.includes(debtor));
             const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
-            totalCreditFromMyPayments = Math.max(0, totalCreditFromMyPayments - totalReceived);
+            const credit = Math.max(0, baseCredit - totalReceived);
+
+            if (credit > 0.01) {
+                totalCreditFromMyPayments += credit;
+                creditExpenses.push({
+                    exp,
+                    originalShare,
+                    participates,
+                    totalReceived,
+                    credit
+                });
+            }
         }
     });
 
@@ -1818,23 +1830,35 @@ function renderSettlementBreakdown(debtor, creditor, panel) {
 
     const summaryHTML = `
         <div class="settlement-breakdown-summary">
-            <div class="summary-row">
-                <span>Deudas por gastos pagados por otros:</span>
-                <span class="value negative">-${totalOwedToOthers.toFixed(2)}€</span>
+            <div class="reconciliation-header">
+                <strong>Reconciliación de Cuentas:</strong> ¿De dónde salen los ${finalNetDebtVal.toFixed(2)}€?
             </div>
-            <div class="summary-row">
-                <span>Crédito por gastos pagados por ${escapeHTML(debtor)}:</span>
-                <span class="value positive">+${totalCreditFromMyPayments.toFixed(2)}€</span>
+            <div class="reconciliation-body">
+                <div class="summary-row">
+                    <span class="label">1. Total de tus deudas:</span>
+                    <span class="value negative">-${totalOwedToOthers.toFixed(2)}€</span>
+                </div>
+                <div class="summary-row-desc">
+                    Suma de tus partes en gastos pagados por otros
+                </div>
+                <div class="summary-row">
+                    <span class="label">2. Total de tus créditos:</span>
+                    <span class="value positive">+${totalCreditFromMyPayments.toFixed(2)}€</span>
+                </div>
+                <div class="summary-row-desc">
+                    Suma de créditos por gastos que pagaste tú
+                </div>
+                <div class="summary-row total">
+                    <span class="label">Saldo Neto a Pagar:</span>
+                    <span class="value negative">${finalNetDebtVal.toFixed(2)}€</span>
+                </div>
             </div>
-            <div class="summary-row total">
-                <span>Saldo Neto Pendiente:</span>
-                <span class="value ${finalNetDebt > 0.019 ? 'negative' : (finalNetDebt < -0.019 ? 'positive' : 'neutral')}">
-                    ${finalNetDebt > 0.019 ? '-' : (finalNetDebt < -0.019 ? '+' : '')}${finalNetDebtVal.toFixed(2)}€
-                </span>
+            <div class="summary-explanation">
+                <span class="info-icon">ℹ️</span>
+                <p class="summary-help-text">
+                    <strong>Simplificación de pagos:</strong> En lugar de hacer múltiples Bizums (por ejemplo, pagar a Luis por sus gastos y cobrar de Herrera), el sistema compensa tus deudas y créditos. Solo debes pagar tu saldo neto de <strong>${finalNetDebtVal.toFixed(2)}€</strong> a <strong>${escapeHTML(creditor)}</strong> para quedar al día con todos.
+                </p>
             </div>
-            <p class="summary-help-text">
-                *Nota: Mediante la simplificación de cuentas, este saldo neto de <strong>${finalNetDebtVal.toFixed(2)}€</strong> se liquida realizando una transferencia de ese importe a <strong>${escapeHTML(creditor)}</strong>.
-            </p>
         </div>
     `;
 
@@ -1916,6 +1940,60 @@ function renderSettlementBreakdown(debtor, creditor, panel) {
         `;
     };
 
+    // Genera el HTML de un item de crédito con sus cobros
+    const getCreditItemHTML = (item) => {
+        const exp = item.exp;
+        let dateLabel = exp.date;
+        try {
+            const dateParts = exp.date.split("-");
+            if (dateParts.length === 3) {
+                dateLabel = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+            }
+        } catch(e) {}
+
+        let paymentsHTML = "";
+        const payments = expenses.filter(p => p.relatedExpenseId === exp.id && p.participants && p.participants.includes(debtor));
+        if (payments.length > 0) {
+            paymentsHTML = `<div class="settlement-detail-payments-list">`;
+            payments.forEach(p => {
+                let pDateLabel = p.date;
+                try {
+                    const pDateParts = p.date.split("-");
+                    if (pDateParts.length === 3) {
+                        pDateLabel = `${pDateParts[2]}/${pDateParts[1]}`;
+                    }
+                } catch(e) {}
+                paymentsHTML += `
+                    <div class="settlement-detail-payment-row">
+                        <span>💸 Cobro registrado de ${escapeHTML(p.payer)}: <strong>${p.amount.toFixed(2)}€</strong> (${pDateLabel})</span>
+                        <button class="btn-undo-payment" onclick="window.deletePaymentFromBreakdown('${p.id}', '${escapeHTML(p.payer)}', '${escapeHTML(debtor)}', this)" title="Eliminar este cobro y restaurar el crédito">Eliminar</button>
+                    </div>
+                `;
+            });
+            paymentsHTML += `</div>`;
+        }
+
+        return `
+            <div class="settlement-detail-item credit-item" id="detail-item-${exp.id}" style="flex-direction: column; align-items: stretch; gap: 8px; border-left: 3px solid var(--success);">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;">
+                    <div class="settlement-detail-info">
+                        <span class="settlement-detail-desc">${escapeHTML(exp.description)}</span>
+                        <span class="settlement-detail-meta">
+                            Pagado por ti el ${dateLabel} • Total: ${exp.amount.toFixed(2)}€ ${item.participates ? `(tu parte: ${item.originalShare.toFixed(2)}€)` : '(no participas)'}
+                        </span>
+                    </div>
+                    <div class="settlement-detail-amount">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                            <span class="settlement-detail-value" style="color: var(--success);">+${item.credit.toFixed(2)}€</span>
+                            <span class="balance-label">Crédito a tu favor</span>
+                        </div>
+                    </div>
+                </div>
+                ${paymentsHTML}
+            </div>
+        `;
+    };
+
     if (directExpenses.length > 0) {
         html += `<div class="settlement-details-title">Deudas directas con ${escapeHTML(creditor)}</div>`;
         directExpenses.forEach(exp => {
@@ -1930,7 +2008,14 @@ function renderSettlementBreakdown(debtor, creditor, panel) {
         });
     }
 
-    if (directExpenses.length === 0 && otherExpenses.length === 0) {
+    if (creditExpenses.length > 0) {
+        html += `<div class="settlement-details-title" style="margin-top: 10px; color: var(--success);">Gastos pagados por ti (generan crédito a tu favor)</div>`;
+        creditExpenses.forEach(item => {
+            html += getCreditItemHTML(item);
+        });
+    }
+
+    if (directExpenses.length === 0 && otherExpenses.length === 0 && creditExpenses.length === 0) {
         html += `<div class="empty-state-small"><p>No hay deudas directas ni participaciones en gastos pendientes.</p></div>`;
     }
 
