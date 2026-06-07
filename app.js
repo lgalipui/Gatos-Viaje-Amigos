@@ -1196,7 +1196,8 @@ function setupEventListeners() {
                 payer: from,
                 participants: [to],
                 isManual: true,
-                isPayment: true
+                isPayment: true,
+                comment: comment || ""
             };
 
             expenses.push(paymentExpense);
@@ -2177,7 +2178,8 @@ window.settleExpensePartially = function(expenseId, debtor, creditor, amount) {
         participants: [creditor],
         isManual: true,
         isPayment: true,
-        relatedExpenseId: expenseId
+        relatedExpenseId: expenseId,
+        expenseConcept: desc
     };
     
     expenses.push(paymentExpense);
@@ -2630,6 +2632,46 @@ function renderSettlementsHistory() {
             }
         } catch(e) {}
 
+        // Extraer explicación de comentarios o concepto de gasto si procede
+        let explanation = "";
+        
+        // 1. Caso de desglose (botón del desglose)
+        const isBreakdown = !!p.relatedExpenseId || (p.description && p.description.includes(' por "'));
+        if (isBreakdown) {
+            let conceptText = p.expenseConcept || "";
+            if (!conceptText && p.relatedExpenseId) {
+                const origExp = expenses.find(e => e.id === p.relatedExpenseId);
+                if (origExp) conceptText = origExp.description;
+            }
+            if (!conceptText) {
+                const desc = p.description || "";
+                const porIndex = desc.indexOf(' por "');
+                if (porIndex !== -1) {
+                    conceptText = desc.substring(porIndex + 6, desc.length - 1);
+                }
+            }
+            if (conceptText) {
+                explanation = `Concepto de gasto: ${conceptText}`;
+            }
+        } else {
+            // 2. Caso de comentario registrado en liquidación manual o propuesta
+            let commentText = p.comment || "";
+            if (!commentText) {
+                const desc = p.description || "";
+                const openParen = desc.indexOf(' (');
+                const closeParen = desc.lastIndexOf(')');
+                if (openParen !== -1 && closeParen !== -1 && closeParen > openParen) {
+                    const comment = desc.substring(openParen + 2, closeParen);
+                    if (comment !== "Liquidación") {
+                        commentText = comment;
+                    }
+                }
+            }
+            if (commentText) {
+                explanation = `Comentario: ${commentText}`;
+            }
+        }
+
         const item = document.createElement("div");
         item.className = "settlement-history-item";
         item.style.display = "flex";
@@ -2651,6 +2693,7 @@ function renderSettlementsHistory() {
                 </span>
                 <span style="font-size: 0.7rem; color: var(--text-muted);">
                     Fecha: ${dateLabel} ${p.description.toLowerCase().includes("parcial") ? "• Pago Parcial" : "• Pago Completo"}
+                    ${explanation ? `• <strong style="color: var(--accent-cyan); font-weight: 700;">${escapeHTML(explanation)}</strong>` : ''}
                 </span>
             </div>
             <div class="settlement-history-action" style="display: flex; align-items: center; gap: 12px;">
@@ -2742,7 +2785,8 @@ window.submitPartialSettlement = function(from, to, btn) {
         payer: from,
         participants: [to],
         isManual: true,
-        isPayment: true
+        isPayment: true,
+        comment: comment || ""
     };
 
     expenses.push(paymentExpense);
