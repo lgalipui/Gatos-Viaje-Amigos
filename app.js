@@ -802,11 +802,19 @@ function renderSettlementsList(transactions) {
                         <button class="btn-details-toggle" onclick="window.toggleSettlementDetails('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', this)">Ver desglose ▾</button>
                     </div>
 
-                    <div class="partial-settle-inline-container" style="display: none; margin-top: 10px; width: 100%; gap: 6px; align-items: center; justify-content: flex-end;">
-                        <span style="font-size: 0.7rem; color: var(--text-muted);">Cantidad (€):</span>
-                        <input type="number" class="partial-settle-amount-input filter-select" placeholder="0.00" step="0.01" min="0.01" max="${t.amount}" style="width: 80px; padding: 4px 6px; font-size: 0.8rem; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
-                        <button class="btn btn-success btn-xs" style="padding: 4px 8px;" onclick="window.submitPartialSettlement('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', this)">✔</button>
-                        <button class="btn btn-xs" style="padding: 4px 8px; background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--border-color);" onclick="window.togglePartialSettleForm(this)">✘</button>
+                    <div class="partial-settle-inline-container" style="display: none; margin-top: 10px; width: 100%; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 0.7rem; color: var(--text-muted);">Cantidad (€):</span>
+                            <input type="number" class="partial-settle-amount-input filter-select" value="${t.amount.toFixed(2)}" step="0.01" min="0.01" max="${t.amount}" style="width: 85px; padding: 4px 6px; font-size: 0.85rem; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 0.7rem; color: var(--text-muted);">Comentario:</span>
+                            <input type="text" class="partial-settle-comment-input filter-select" placeholder="Concepto (opcional)..." style="width: 140px; padding: 4px 6px; font-size: 0.85rem; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="btn btn-success btn-xs" style="padding: 4px 8px;" onclick="window.submitPartialSettlement('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', this)">✔</button>
+                            <button class="btn btn-xs" style="padding: 4px 8px; background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--border-color);" onclick="window.togglePartialSettleForm(this)">✘</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1167,6 +1175,7 @@ function setupEventListeners() {
             const to = document.getElementById("select-settle-to").value;
             const amountVal = parseFloat(document.getElementById("input-settle-amount").value);
             const date = document.getElementById("input-settle-date").value || new Date().toISOString().split("T")[0];
+            const comment = document.getElementById("input-settle-comment").value.trim();
 
             if (!from || !to || isNaN(amountVal) || amountVal <= 0) {
                 showToast("Por favor, rellena todos los campos válidos.", "warning");
@@ -1181,7 +1190,7 @@ function setupEventListeners() {
             // Registrar el pago
             const paymentExpense = {
                 id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-                description: `Pago: de ${from} a ${to} (Liquidación)`,
+                description: comment ? `Pago: de ${from} a ${to} (${comment})` : `Pago: de ${from} a ${to} (Liquidación)`,
                 amount: amountVal,
                 date: date,
                 payer: from,
@@ -2707,6 +2716,8 @@ window.submitPartialSettlement = function(from, to, btn) {
     if (!container) return;
     const input = container.querySelector('.partial-settle-amount-input');
     const amountVal = parseFloat(input.value);
+    const commentInput = container.querySelector('.partial-settle-comment-input');
+    const comment = commentInput ? commentInput.value.trim() : '';
 
     if (isNaN(amountVal) || amountVal <= 0) {
         showToast("Por favor, introduce un importe válido.", "warning");
@@ -2720,9 +2731,12 @@ window.submitPartialSettlement = function(from, to, btn) {
         }
     }
 
+    const isFullPayment = !isNaN(maxVal) && Math.abs(amountVal - maxVal) < 0.019;
+    const defaultDesc = isFullPayment ? `Pago: de ${from} a ${to} (Liquidación)` : `Pago parcial: de ${from} a ${to} (Liquidación)`;
+
     const paymentExpense = {
         id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-        description: `Pago parcial: de ${from} a ${to} (Liquidación)`,
+        description: comment ? `Pago: de ${from} a ${to} (${comment})` : defaultDesc,
         amount: amountVal,
         date: new Date().toISOString().split("T")[0],
         payer: from,
@@ -2737,7 +2751,7 @@ window.submitPartialSettlement = function(from, to, btn) {
     }
     saveToLocalStorage();
     updateAppUI();
-    showToast(`Registrado pago parcial de ${amountVal.toFixed(2)}€ de ${from} a ${to}`);
+    showToast(`Registrado pago de ${amountVal.toFixed(2)}€ de ${from} a ${to}`);
 };
 
 /**
