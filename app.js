@@ -3,6 +3,14 @@
  * Lógica principal de la aplicación.
  */
 
+// Cargar tema guardado antes de que cargue el DOM para evitar parpadeos
+(function() {
+    const savedTheme = localStorage.getItem("gatos_theme") || "dark";
+    if (savedTheme === "light") {
+        document.body.classList.add("light-theme");
+    }
+})();
+
 // ==========================================================================
 // ESTADO GLOBAL DE LA APLICACIÓN
 // ==========================================================================
@@ -30,6 +38,7 @@ const DEMO_CHAT = `[01/06/2026 14:32:10] Alejandro: Buenas! Ya listos para el vi
 // INICIALIZACIÓN
 // ==========================================================================
 document.addEventListener("DOMContentLoaded", () => {
+    initTheme(); // Inicializa el tema día/noche
     initApp();
     setupEventListeners();
 });
@@ -1557,5 +1566,45 @@ function checkUrlHashTrip() {
             console.error("Error al cargar viaje desde el hash", e);
             showToast("El enlace compartido no es válido o está dañado", "danger");
         }
+    }
+}
+
+/**
+ * Inicializa y configura la lógica del tema (Día/Noche)
+ */
+function initTheme() {
+    const themeToggleBtn = document.getElementById("btn-theme-toggle");
+    if (!themeToggleBtn) return;
+
+    themeToggleBtn.addEventListener("click", () => {
+        const isLight = document.body.classList.toggle("light-theme");
+        localStorage.setItem("gatos_theme", isLight ? "light" : "dark");
+        updateThemeUI();
+        showToast(`Tema cambiado a modo ${isLight ? 'día' : 'noche'}`);
+    });
+
+    // Sincronizar el botón inicialmente
+    updateThemeUI();
+}
+
+/**
+ * Actualiza los iconos y el texto del botón del tema según el estado actual
+ */
+function updateThemeUI() {
+    const isLight = document.body.classList.contains("light-theme");
+    const darkIcon = document.getElementById("theme-icon-dark");
+    const lightIcon = document.getElementById("theme-icon-light");
+    const themeText = document.getElementById("theme-text");
+    
+    if (!darkIcon || !lightIcon || !themeText) return;
+
+    if (isLight) {
+        darkIcon.style.display = "inline";
+        lightIcon.style.display = "none";
+        themeText.textContent = "Modo Oscuro";
+    } else {
+        darkIcon.style.display = "none";
+        lightIcon.style.display = "inline";
+        themeText.textContent = "Modo Claro";
     }
 }
