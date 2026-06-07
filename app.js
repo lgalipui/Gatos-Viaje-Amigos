@@ -463,13 +463,15 @@ function updateAppUI() {
  * Renderiza los totales de la cabecera
  */
 function renderGlobalStats(balances) {
-    const totalSpent = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    // Solo contar los gastos de viaje con terceros (excluyendo transferencias/pagos entre miembros)
+    const realExpenses = expenses.filter(exp => !exp.isPayment);
+    const totalSpent = realExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     const memberCount = members.size;
     const avgSpent = memberCount > 0 ? totalSpent / memberCount : 0;
 
     document.getElementById("val-total-spent").textContent = `${totalSpent.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
     document.getElementById("val-avg-spent").textContent = `${avgSpent.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€`;
-    document.getElementById("val-active-members").textContent = `${memberCount} amigos / ${expenses.length} gastos`;
+    document.getElementById("val-active-members").textContent = `${memberCount} amigo${memberCount !== 1 ? 's' : ''} / ${realExpenses.length} gasto${realExpenses.length !== 1 ? 's' : ''}`;
 }
 
 /**
@@ -526,11 +528,11 @@ function renderMembersList(balances) {
         return;
     }
     
-    // Contar cuánto ha pagado realmente cada persona
+    // Contar cuánto ha pagado realmente cada persona (solo gastos reales a terceros)
     const paidByMember = {};
     members.forEach(m => paidByMember[m] = 0);
     expenses.forEach(exp => {
-        if (paidByMember[exp.payer] !== undefined) {
+        if (!exp.isPayment && paidByMember[exp.payer] !== undefined) {
             paidByMember[exp.payer] += exp.amount;
         }
     });
@@ -578,11 +580,11 @@ function renderBalancesList(balances) {
         return;
     }
 
-    // Contar cuánto ha pagado realmente cada persona
+    // Contar cuánto ha pagado realmente cada persona (solo de gastos reales)
     const paidByMember = {};
     members.forEach(m => paidByMember[m] = 0);
     expenses.forEach(exp => {
-        if (paidByMember[exp.payer] !== undefined) {
+        if (!exp.isPayment && paidByMember[exp.payer] !== undefined) {
             paidByMember[exp.payer] += exp.amount;
         }
     });
