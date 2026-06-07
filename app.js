@@ -729,32 +729,36 @@ function renderSettlementsList(transactions) {
         const key = `${t.from}_${t.to}_${t.amount.toFixed(2)}`;
         const isCompleted = completedSettlements.has(key);
 
-        const card = document.createElement("div");
-        card.className = `settlement-card ${isCompleted ? 'is-completed' : ''}`;
-        card.innerHTML = `
-            <div class="settlement-direction">
-                <div class="settlement-checkbox-wrapper">
-                    <input type="checkbox" class="settle-checkbox" onchange="toggleSettlement('${key}')" ${isCompleted ? 'checked' : ''} title="Marcar como completado">
+        const cardWrapper = document.createElement("div");
+        cardWrapper.className = "settlement-card-wrapper";
+        cardWrapper.innerHTML = `
+            <div class="settlement-card ${isCompleted ? 'is-completed' : ''}">
+                <div class="settlement-direction">
+                    <div class="settlement-checkbox-wrapper">
+                        <input type="checkbox" class="settle-checkbox" onchange="toggleSettlement('${key}')" ${isCompleted ? 'checked' : ''} title="Marcar como completado">
+                    </div>
+                    <div class="settlement-actor">
+                        <div class="mini-avatar avatar-${fromIdx !== -1 ? fromIdx % 6 : 0}">${t.from.substring(0, 2).toUpperCase()}</div>
+                        <span class="settlement-actor-name" title="${escapeHTML(t.from)}">${escapeHTML(t.from)}</span>
+                    </div>
+                    <div class="settlement-arrow-wrapper">
+                        <div class="settlement-arrow-line"></div>
+                        <span class="settlement-transfer-text">${isCompleted ? 'pagó a' : 'debe pagar'}</span>
+                    </div>
+                    <div class="settlement-actor">
+                        <div class="mini-avatar avatar-${toIdx !== -1 ? toIdx % 6 : 0}">${t.to.substring(0, 2).toUpperCase()}</div>
+                        <span class="settlement-actor-name" title="${escapeHTML(t.to)}">${escapeHTML(t.to)}</span>
+                    </div>
                 </div>
-                <div class="settlement-actor">
-                    <div class="mini-avatar avatar-${fromIdx !== -1 ? fromIdx % 6 : 0}">${t.from.substring(0, 2).toUpperCase()}</div>
-                    <span class="settlement-actor-name" title="${escapeHTML(t.from)}">${escapeHTML(t.from)}</span>
-                </div>
-                <div class="settlement-arrow-wrapper">
-                    <div class="settlement-arrow-line"></div>
-                    <span class="settlement-transfer-text">${isCompleted ? 'pagó a' : 'debe pagar'}</span>
-                </div>
-                <div class="settlement-actor">
-                    <div class="mini-avatar avatar-${toIdx !== -1 ? toIdx % 6 : 0}">${t.to.substring(0, 2).toUpperCase()}</div>
-                    <span class="settlement-actor-name" title="${escapeHTML(t.to)}">${escapeHTML(t.to)}</span>
+                <div class="settlement-amount-box">
+                    <span class="settlement-amount">${t.amount.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
+                    <div class="settlement-action-hint">${isCompleted ? 'Completado' : 'Bizum / Efectivo'}</div>
+                    <button class="btn-details-toggle" onclick="window.toggleSettlementDetails('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', this)">Ver desglose ▾</button>
                 </div>
             </div>
-            <div class="settlement-amount-box">
-                <span class="settlement-amount">${t.amount.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
-                <div class="settlement-action-hint">${isCompleted ? 'Completado' : 'Bizum / Efectivo'}</div>
-            </div>
+            <div class="settlement-details-panel" style="display: none;"></div>
         `;
-        container.appendChild(card);
+        container.appendChild(cardWrapper);
     });
 }
 
@@ -804,32 +808,36 @@ function renderExpensesFeed() {
         } catch(e) {}
 
         const card = document.createElement("div");
-        card.className = `expense-card ${exp.isManual ? 'is-manual' : ''}`;
+        const isPayment = exp.isPayment;
+        card.className = `expense-card ${exp.isManual ? 'is-manual' : ''} ${isPayment ? 'is-payment' : ''}`;
+        
+        const badgeText = isPayment ? "Pago" : `Entre ${exp.participants ? exp.participants.length : members.size}`;
+        const descHTML = isPayment ? `✨ <i>${escapeHTML(exp.description)}</i>` : escapeHTML(exp.description);
+        const payerLabel = isPayment ? "Enviado por" : "Pagado por";
+        
         card.innerHTML = `
             <div class="expense-main-info">
-                <div class="expense-avatar avatar-${payerIdx !== -1 ? payerIdx % 6 : 0}">${initials}</div>
+                <div class="expense-avatar ${isPayment ? 'avatar-payment' : `avatar-${payerIdx !== -1 ? payerIdx % 6 : 0}`}">${isPayment ? '💸' : initials}</div>
                 <div class="expense-meta-details">
                     <div class="expense-title-row">
-                        <span class="expense-description">${escapeHTML(exp.description)}</span>
-                        <span class="expense-badge-split">Entre ${exp.participants ? exp.participants.length : members.size}</span>
+                        <span class="expense-description">${descHTML}</span>
+                        <span class="expense-badge-split ${isPayment ? 'badge-payment' : ''}">${badgeText}</span>
                     </div>
-                    <span class="expense-payer-name">Pagado por <strong>${escapeHTML(exp.payer)}</strong> • <span class="expense-date-label">${dateLabel}</span></span>
+                    <span class="expense-payer-name">${payerLabel} <strong>${escapeHTML(exp.payer)}</strong> • <span class="expense-date-label">${dateLabel}</span></span>
                 </div>
             </div>
             <div class="expense-action-area">
-                <span class="expense-amount-display">${exp.amount.toFixed(2)}€</span>
+                <span class="expense-amount-display ${isPayment ? 'amount-payment' : ''}">${exp.amount.toFixed(2)}€</span>
                 <div class="expense-actions-menu">
-                    <button class="btn-icon btn-edit" onclick="openEditExpenseModal('${exp.id}')" title="Editar Gasto">
+                    <button class="btn-icon btn-edit" onclick="window.openEditExpenseModal('${exp.id}')" title="${isPayment ? 'Editar Pago' : 'Editar Gasto'}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                     </button>
-                    <button class="btn-icon btn-delete" onclick="deleteExpense('${exp.id}')" title="Eliminar Gasto">
+                    <button class="btn-icon btn-delete" onclick="deleteExpense('${exp.id}')" title="${isPayment ? 'Eliminar Pago' : 'Eliminar Gasto'}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
                         </svg>
                     </button>
                 </div>
@@ -1608,3 +1616,204 @@ function updateThemeUI() {
         themeText.textContent = "Modo Claro";
     }
 }
+
+/**
+ * Alterna la visualización del panel de desglose de deudas y lo renderiza
+ */
+window.toggleSettlementDetails = function(debtor, creditor, btn) {
+    const cardWrapper = btn.closest('.settlement-card-wrapper');
+    if (!cardWrapper) return;
+    
+    const panel = cardWrapper.querySelector('.settlement-details-panel');
+    if (!panel) return;
+    
+    const isVisible = panel.style.display === 'flex';
+    
+    if (isVisible) {
+        panel.style.display = 'none';
+        btn.textContent = 'Ver desglose ▾';
+    } else {
+        panel.style.display = 'flex';
+        btn.textContent = 'Ocultar desglose ▴';
+        renderSettlementBreakdown(debtor, creditor, panel);
+    }
+};
+
+/**
+ * Renderiza el desglose detallado de los gastos asociados a una deuda
+ */
+function renderSettlementBreakdown(debtor, creditor, panel) {
+    // 1. Obtener gastos pagados por creditor donde debtor participa
+    const directExpenses = expenses.filter(exp => 
+        exp.payer === creditor && 
+        exp.participants && 
+        exp.participants.includes(debtor) &&
+        !exp.isPayment
+    );
+    
+    // 2. Obtener gastos pagados por otros donde debtor participa
+    const otherExpenses = expenses.filter(exp => 
+        exp.payer !== creditor && 
+        exp.payer !== debtor && 
+        exp.participants && 
+        exp.participants.includes(debtor) &&
+        !exp.isPayment
+    );
+
+    let html = '';
+
+    // Genera el HTML de un item de gasto con su estado de pago
+    const getExpenseItemHTML = (exp) => {
+        const totalParticipants = exp.participants.length;
+        const originalShare = exp.amount / totalParticipants;
+        
+        // Calcular pagos ya realizados asociados a este gasto
+        const payments = expenses.filter(p => p.relatedExpenseId === exp.id && p.payer === debtor);
+        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+        const remaining = Math.max(0, originalShare - totalPaid);
+        const isFullyPaid = remaining < 0.019;
+
+        let dateLabel = exp.date;
+        try {
+            const dateParts = exp.date.split("-");
+            if (dateParts.length === 3) {
+                dateLabel = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+            }
+        } catch(e) {}
+
+        return `
+            <div class="settlement-detail-item" id="detail-item-${exp.id}">
+                <div class="settlement-detail-info">
+                    <span class="settlement-detail-desc">${escapeHTML(exp.description)}</span>
+                    <span class="settlement-detail-meta">
+                        Pagado por ${escapeHTML(exp.payer)} el ${dateLabel} • Total: ${exp.amount.toFixed(2)}€ (entre ${totalParticipants})
+                    </span>
+                </div>
+                <div class="settlement-detail-amount">
+                    <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                        <span class="settlement-detail-value">${remaining.toFixed(2)}€</span>
+                        <span class="balance-label">${isFullyPaid ? 'Liquidado' : `Tu parte: ${originalShare.toFixed(2)}€`}</span>
+                    </div>
+                    
+                    ${!isFullyPaid ? `
+                        <div class="settlement-detail-actions">
+                            <button class="btn-detail-action edit-exp" onclick="window.openEditExpenseModal('${exp.id}')" title="Editar este gasto original">Editar</button>
+                            <button class="btn-detail-action pay-partial" onclick="window.showPartialPayForm('${exp.id}', '${escapeHTML(debtor)}', '${escapeHTML(exp.payer)}', this)" title="Pagar una parte de este gasto">Pagar Parte</button>
+                            <button class="btn-detail-action pay-total" onclick="window.settleExpensePartially('${exp.id}', '${escapeHTML(debtor)}', '${escapeHTML(exp.payer)}', ${remaining})" title="Liquidar totalmente tu parte">Pagar Todo</button>
+                        </div>
+                    ` : `
+                        <div class="settlement-detail-actions" style="margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                            <span class="status-indicator success" style="width: 8px; height: 8px; display: inline-block;"></span>
+                            <span style="font-size: 0.7rem; color: var(--success); font-weight: 600;">Pagado</span>
+                        </div>
+                    `}
+                    <div class="partial-pay-container" style="display: none; width: 100%;"></div>
+                </div>
+            </div>
+        `;
+    };
+
+    if (directExpenses.length > 0) {
+        html += `<div class="settlement-details-title">Deudas directas con ${escapeHTML(creditor)}</div>`;
+        directExpenses.forEach(exp => {
+            html += getExpenseItemHTML(exp);
+        });
+    }
+
+    if (otherExpenses.length > 0) {
+        html += `<div class="settlement-details-title" style="margin-top: 10px;">Otras deudas de ${escapeHTML(debtor)} en el viaje</div>`;
+        otherExpenses.forEach(exp => {
+            html += getExpenseItemHTML(exp);
+        });
+    }
+
+    if (directExpenses.length === 0 && otherExpenses.length === 0) {
+        html += `<div class="empty-state-small"><p>No hay deudas directas ni participaciones en gastos pendientes.</p></div>`;
+    }
+
+    panel.innerHTML = html;
+}
+
+/**
+ * Muestra el formulario inline de pago parcial
+ */
+window.showPartialPayForm = function(expenseId, debtor, creditor, btn) {
+    const parent = btn.closest('.settlement-detail-amount');
+    if (!parent) return;
+    
+    const container = parent.querySelector('.partial-pay-container');
+    if (!container) return;
+    
+    // Ocultar acciones
+    const actions = parent.querySelector('.settlement-detail-actions');
+    if (actions) actions.style.display = 'none';
+    
+    container.style.display = 'block';
+    container.innerHTML = `
+        <div class="partial-pay-form">
+            <input type="number" class="partial-pay-input" min="0.01" step="0.01" placeholder="Importe" required>
+            <button class="btn-partial-submit" onclick="window.submitPartialPay('${expenseId}', '${escapeHTML(debtor)}', '${escapeHTML(creditor)}', this)">Confirmar</button>
+            <button class="btn-partial-cancel" onclick="window.cancelPartialPay(this)">X</button>
+        </div>
+    `;
+};
+
+/**
+ * Cancela el pago parcial inline
+ */
+window.cancelPartialPay = function(btn) {
+    const parent = btn.closest('.settlement-detail-amount');
+    if (!parent) return;
+    
+    const container = parent.querySelector('.partial-pay-container');
+    if (container) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+    }
+    
+    const actions = parent.querySelector('.settlement-detail-actions');
+    if (actions) actions.style.display = 'flex';
+};
+
+/**
+ * Confirma e introduce el pago parcial
+ */
+window.submitPartialPay = function(expenseId, debtor, creditor, btn) {
+    const form = btn.closest('.partial-pay-form');
+    if (!form) return;
+    
+    const input = form.querySelector('.partial-pay-input');
+    const amount = parseFloat(input.value);
+    
+    if (isNaN(amount) || amount <= 0) {
+        showToast("Por favor, introduce un importe válido", "warning");
+        return;
+    }
+    
+    window.settleExpensePartially(expenseId, debtor, creditor, amount);
+};
+
+/**
+ * Registra una transferencia parcial/total de un gasto y actualiza
+ */
+window.settleExpensePartially = function(expenseId, debtor, creditor, amount) {
+    const origExpense = expenses.find(e => e.id === expenseId);
+    const desc = origExpense ? origExpense.description : "Gasto";
+    
+    const paymentExpense = {
+        id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        description: `Pago: de ${debtor} a ${creditor} por "${desc}"`,
+        amount: parseFloat(amount),
+        date: new Date().toISOString().split("T")[0],
+        payer: debtor,
+        participants: [creditor],
+        isManual: true,
+        isPayment: true,
+        relatedExpenseId: expenseId
+    };
+    
+    expenses.push(paymentExpense);
+    saveToLocalStorage();
+    updateAppUI();
+    showToast(`Registrado pago de ${amount.toFixed(2)}€ de ${debtor} a ${creditor}`);
+};

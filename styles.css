@@ -1786,3 +1786,239 @@ body.light-theme .member-row {
 body.light-theme .member-row:hover {
     background: rgba(255, 255, 255, 0.8);
 }
+
+/* ==========================================================================
+   SETTLEMENT DETAILS PANEL & PARTIAL PAYMENTS
+   ========================================================================== */
+.settlement-card-wrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.settlement-details-panel {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    margin-top: -8px;
+    padding: 20px 16px 16px 16px;
+    display: none; /* Controlled by JS flex/none */
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+}
+
+body.light-theme .settlement-details-panel {
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.settlement-details-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.settlement-detail-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    gap: 12px;
+}
+
+body.light-theme .settlement-detail-item {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.settlement-detail-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+
+.settlement-detail-desc {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.settlement-detail-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.settlement-detail-amount {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    min-width: 150px;
+}
+
+.settlement-detail-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.settlement-detail-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.btn-detail-action {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.btn-detail-action.pay-total {
+    background-color: var(--success);
+    color: white;
+}
+.btn-detail-action.pay-total:hover {
+    background-color: #059669;
+}
+
+.btn-detail-action.pay-partial {
+    background-color: var(--primary);
+    color: white;
+}
+.btn-detail-action.pay-partial:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-detail-action.edit-exp {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+}
+.btn-detail-action.edit-exp:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+body.light-theme .btn-detail-action.edit-exp {
+    background-color: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+.btn-details-toggle {
+    font-size: 0.75rem;
+    color: var(--accent-cyan);
+    cursor: pointer;
+    font-weight: 600;
+    margin-top: 4px;
+    background: none;
+    border: none;
+    padding: 0;
+    transition: color var(--transition-fast);
+}
+.btn-details-toggle:hover {
+    color: var(--primary);
+    text-decoration: underline;
+}
+
+/* Partial pay inline form */
+.partial-pay-container {
+    margin-top: 6px;
+    width: 100%;
+}
+
+.partial-pay-form {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+body.light-theme .partial-pay-form {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.partial-pay-input {
+    width: 80px;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: white;
+    font-size: 0.75rem;
+    outline: none;
+}
+body.light-theme .partial-pay-input {
+    background: white;
+    color: var(--text-main);
+}
+
+.btn-partial-submit {
+    padding: 4px 8px;
+    background: var(--success);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-partial-cancel {
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border: none;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+body.light-theme .btn-partial-cancel {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Payment styles in feed */
+.expense-card.is-payment {
+    background: rgba(16, 185, 129, 0.03);
+    border-left: 3px solid var(--success) !important;
+}
+
+body.light-theme .expense-card.is-payment {
+    background: rgba(5, 150, 105, 0.03);
+}
+
+.avatar-payment {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+}
+
+.expense-badge-split.badge-payment {
+    background: rgba(16, 185, 129, 0.12);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.expense-amount-display.amount-payment {
+    color: var(--success);
+}
