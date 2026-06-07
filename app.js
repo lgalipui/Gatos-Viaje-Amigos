@@ -18,6 +18,7 @@ let expenses = []; // Lista de gastos { id, description, amount, date, payer, pa
 let members = new Set(); // Conjunto de nombres de participantes únicos
 let dataSource = "demo"; // "demo" | "file" | "pasted" | "local"
 let completedSettlements = new Set(); // Conjunto de claves de liquidaciones realizadas "from_to_amount"
+let activeBalanceFilter = "final"; // "final" | "expenses" | "payments"
 
 // Datos demo predefinidos en caso de que Cuentas.txt esté vacío o falte
 const DEMO_CHAT = `[01/06/2026 14:32:10] Alejandro: Buenas! Ya listos para el viaje?
@@ -446,8 +447,9 @@ function updateAppUI() {
     renderMembersList(balances);
 
     // 3b. Tarjeta de saldos y balances (Balances Tab)
-    renderBalancesList(balances);
-    renderBalancesChart(balances);
+    const filteredBalances = calculateFilteredBalances();
+    renderBalancesList(filteredBalances);
+    renderBalancesChart(filteredBalances);
 
     // 4. Propuesta de pagos (Liquidación Tab)
     renderSettlementsList(transactions);
@@ -580,18 +582,40 @@ function renderBalancesList(balances) {
         return;
     }
 
-    // Contar cuánto ha pagado realmente cada persona (solo de gastos reales)
+    // Contar cuánto ha pagado realmente cada persona y cuánto ha enviado/recibido
     const paidByMember = {};
-    members.forEach(m => paidByMember[m] = 0);
+    const sentByMember = {};
+    const receivedByMember = {};
+    members.forEach(m => {
+        paidByMember[m] = 0;
+        sentByMember[m] = 0;
+        receivedByMember[m] = 0;
+    });
+
     expenses.forEach(exp => {
-        if (!exp.isPayment && paidByMember[exp.payer] !== undefined) {
-            paidByMember[exp.payer] += exp.amount;
+        if (exp.isPayment) {
+            if (sentByMember[exp.payer] !== undefined) {
+                sentByMember[exp.payer] += exp.amount;
+            }
+            if (exp.participants) {
+                exp.participants.forEach(p => {
+                    if (receivedByMember[p] !== undefined) {
+                        receivedByMember[p] += exp.amount;
+                    }
+                });
+            }
+        } else {
+            if (paidByMember[exp.payer] !== undefined) {
+                paidByMember[exp.payer] += exp.amount;
+            }
         }
     });
 
     sortedMembers.forEach((member, idx) => {
         const bal = balances[member] || 0;
         const paid = paidByMember[member] || 0;
+        const sent = sentByMember[member] || 0;
+        const received = receivedByMember[member] || 0;
         const initials = member.substring(0, 2).toUpperCase();
         
         let statusClass = "balance-neutral";
@@ -601,11 +625,23 @@ function renderBalancesList(balances) {
         if (bal > 0.019) {
             statusClass = "balance-positive";
             sign = "+";
-            label = "Le deben";
+            label = activeBalanceFilter === "expenses" ? "A favor (gastos)" : 
+                    activeBalanceFilter === "payments" ? "Saldo a favor" : "Le deben";
         } else if (bal < -0.019) {
             statusClass = "balance-negative";
             sign = "";
-            label = "Debe pagar";
+            label = activeBalanceFilter === "expenses" ? "Debe (gastos)" : 
+                    activeBalanceFilter === "payments" ? "Saldo en contra" : "Debe pagar";
+        }
+
+        let metaHTML = "";
+        if (activeBalanceFilter === "expenses") {
+            metaHTML = `<span class="member-paid">Aportado: ${paid.toFixed(2)}€</span>`;
+        } else if (activeBalanceFilter === "payments") {
+            metaHTML = `<span class="member-paid">Enviado: ${sent.toFixed(2)}€ • Recibido: ${received.toFixed(2)}€</span>`;
+        } else {
+            // final
+            metaHTML = `<span class="member-paid">Aportado: ${paid.toFixed(2)}€</span>`;
         }
 
         const memberRow = document.createElement("div");
@@ -615,7 +651,7 @@ function renderBalancesList(balances) {
                 <div class="member-avatar avatar-${idx % 6}">${initials}</div>
                 <div class="member-details">
                     <span class="member-name">${escapeHTML(member)}</span>
-                    <span class="member-paid">Aportado: ${paid.toFixed(2)}€</span>
+                    ${metaHTML}
                 </div>
             </div>
             <div class="member-balance-wrapper">
@@ -1878,3 +1914,72 @@ window.deletePaymentFromBreakdown = function(paymentId, debtor, creditor, btn) {
         showToast("No se encontró el pago registrado", "danger");
     }
 };
+
+/**
+ * Calcula los saldos individuales según el filtro activo (final, gastos o pagos)
+ */
+function calculateFilteredBalances() {
+    if (activeBalanceFilter === "final") {
+        const { balances } = solveDebts();
+        return balances;
+    }
+
+    const balances = {};
+    members.forEach(member => {
+        balances[member] = 0;
+    });
+
+    expenses.forEach(exp => {
+        if (activeBalanceFilter === "expenses" && exp.isPayment) return;
+        if (activeBalanceFilter === "payments" && !exp.isPayment) return;
+        
+        const amount = exp.amount;
+        const payer = exp.payer;
+        const participants = exp.participants || [];
+
+        if (participants.length === 0) return;
+
+        // Sumar al pagador
+        if (balances[payer] !== undefined) {
+            balances[payer] += amount;
+        }
+
+        // Restar a cada participante su parte proporcional
+        const share = amount / participants.length;
+        participants.forEach(participant => {
+            if (balances[participant] !== undefined) {
+                balances[participant] -= share;
+            }
+        });
+    });
+
+    return balances;
+}
+
+/**
+ * Actualiza el filtro de saldos activo y re-renderiza la pestaña Balances
+ */
+window.setBalanceFilter = function(filterType) {
+    activeBalanceFilter = filterType;
+    
+    // Actualizar clases activas en los botones del selector segmentado
+    const btnFinal = document.getElementById("btn-bal-filter-final");
+    const btnExpenses = document.getElementById("btn-bal-filter-expenses");
+    const btnPayments = document.getElementById("btn-bal-filter-payments");
+    
+    if (btnFinal && btnExpenses && btnPayments) {
+        btnFinal.classList.remove("active");
+        btnExpenses.classList.remove("active");
+        btnPayments.classList.remove("active");
+        
+        if (filterType === "final") btnFinal.classList.add("active");
+        else if (filterType === "expenses") btnExpenses.classList.add("active");
+        else if (filterType === "payments") btnPayments.classList.add("active");
+    }
+    
+    // Re-renderizar la pestaña de balances
+    const filteredBalances = calculateFilteredBalances();
+    renderBalancesList(filteredBalances);
+    renderBalancesChart(filteredBalances);
+};
+

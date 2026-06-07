@@ -256,6 +256,13 @@
                         <span class="badge" id="badge-balances-count">Cuentas</span>
                     </div>
                     <div class="card-body">
+                        <!-- Selector segmentado para filtrar el balance visualizado -->
+                        <div class="type-filter-row" style="margin-bottom: 20px; margin-top: 0;">
+                            <button class="type-filter-btn active" id="btn-bal-filter-final" onclick="window.setBalanceFilter('final')" title="Mostrar el balance final combinado (Gastos menos Pagos)">Saldo Final</button>
+                            <button class="type-filter-btn" id="btn-bal-filter-expenses" onclick="window.setBalanceFilter('expenses')" title="Mostrar solo los saldos de deudas de gastos del viaje">Solo Gastos</button>
+                            <button class="type-filter-btn" id="btn-bal-filter-payments" onclick="window.setBalanceFilter('payments')" title="Mostrar solo los saldos de transferencias/pagos realizados">Solo Pagos</button>
+                        </div>
+
                         <!-- Bubbles Chart -->
                         <div class="balances-bubbles-chart" id="chart-balances-bubbles">
                             <!-- Populated by JS -->
