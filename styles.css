@@ -2363,4 +2363,83 @@ body.light-theme .summary-explanation {
     line-height: 1.4;
 }
 
+/* Botón extra pequeño */
+.btn-xs {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.btn-xs.btn-success {
+    background-color: var(--success);
+    color: #ffffff;
+}
+
+.btn-xs.btn-success:hover {
+    background-color: #0d9488;
+}
+
+.btn-xs.btn-secondary {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+}
+
+.btn-xs.btn-secondary:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.light-theme .btn-xs.btn-secondary {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: var(--text-main);
+}
+
+body.light-theme .btn-xs.btn-secondary:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Formulario de registro de liquidación manual */
+.custom-settlement-form-card {
+    transition: all var(--transition-normal);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .custom-settlement-form-card {
+    background: rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Historial de liquidaciones */
+.settlement-history-item {
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    border-left: 3px solid var(--success) !important;
+}
+
+.settlement-history-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme .settlement-history-item {
+    background: rgba(255, 255, 255, 0.75) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+body.light-theme .settlement-history-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* Estilos de botones de propuestas */
+.settlement-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    justify-content: flex-end;
+}
+
 

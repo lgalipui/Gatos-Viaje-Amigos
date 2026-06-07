@@ -135,6 +135,13 @@
                 </svg>
                 <span>Gastos</span>
             </button>
+            <button class="tab-nav-btn" data-target="tab-settlements">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <span>Liquidación</span>
+            </button>
             <button class="tab-nav-btn" data-target="tab-balances">
                 <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -152,13 +159,6 @@
                     <polyline points="10 9 9 9 8 9"></polyline>
                 </svg>
                 <span>Resumen</span>
-            </button>
-            <button class="tab-nav-btn" data-target="tab-settlements">
-                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span>Liquidación</span>
             </button>
         </nav>
 
@@ -206,9 +206,7 @@
                         </div>
                     </div>
                 </article>
-            </section>
-
-            <!-- Tab 2: Expenses Feed -->
+                <!-- Tab 2: Expenses Feed -->
             <section id="tab-expenses" class="tab-section">
                 <article class="card glass-card" id="card-expenses">
                     <div class="card-header header-sticky">
@@ -237,13 +235,6 @@
                                 <!-- Populated by JS -->
                             </select>
                         </div>
-
-                        <!-- Segmented Type Filter -->
-                        <div class="type-filter-row">
-                            <button class="type-filter-btn active" data-type="all">Todos</button>
-                            <button class="type-filter-btn" data-type="expenses">Gastos</button>
-                            <button class="type-filter-btn" data-type="payments">Pagos</button>
-                        </div>
                     </div>
 
                     <div class="card-body scrollable-body">
@@ -258,7 +249,85 @@
                 </article>
             </section>
 
-            <!-- Tab 3: Balances -->
+            <!-- Tab 3: Payment Proposal / Liquidación -->
+            <section id="tab-settlements" class="tab-section">
+                <!-- Debt Settlement / Payment Proposal -->
+                <article class="card glass-card color-accent" id="card-settlements">
+                    <div class="card-header" style="flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
+                        <div class="header-title-wrapper">
+                            <h2>Liquidación de Pagos</h2>
+                            <p class="card-subtitle">Cuentas simplificadas para saldar el viaje</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btn-toggle-custom-settlement" class="btn btn-secondary btn-sm">
+                                <span>+ Registrar Pago Manual</span>
+                            </button>
+                            <button id="btn-copy-proposal" class="btn btn-secondary btn-sm" disabled>
+                                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span>Copiar</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Collapsible Custom Settlement Form -->
+                        <div id="form-custom-settlement" class="custom-settlement-form-card" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02);">
+                            <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--accent-cyan);">Registrar Pago entre Miembros</h3>
+                            <form id="settlement-manual-form" style="display: flex; flex-direction: column; gap: 10px;">
+                                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <div style="flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 4px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">De (Deudor):</label>
+                                        <select id="select-settle-from" class="filter-select" style="width: 100%;" required>
+                                            <option value="">Selecciona...</option>
+                                        </select>
+                                    </div>
+                                    <div style="flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 4px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">A (Acreedor):</label>
+                                        <select id="select-settle-to" class="filter-select" style="width: 100%;" required>
+                                            <option value="">Selecciona...</option>
+                                        </select>
+                                    </div>
+                                    <div style="flex: 1; min-width: 100px; display: flex; flex-direction: column; gap: 4px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Importe (€):</label>
+                                        <input type="number" id="input-settle-amount" placeholder="0.00" step="0.01" min="0.01" class="filter-select" style="width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px; border-radius: 4px;" required>
+                                    </div>
+                                    <div style="flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 4px;">
+                                        <label style="font-size: 0.75rem; color: var(--text-muted);">Fecha:</label>
+                                        <input type="date" id="input-settle-date" class="filter-select" style="width: 100%; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); padding: 8px; border-radius: 4px;" required>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+                                    <button type="button" id="btn-cancel-custom-settle" class="btn btn-sm" style="background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--border-color);">Cancelar</button>
+                                    <button type="submit" class="btn btn-success btn-sm">Registrar Pago</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="settlements-section-title" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-cyan); margin-bottom: 12px;">Propuesta de Bizums sugeridos</div>
+                        
+                        <div class="settlements-list" id="list-settlements" style="margin-bottom: 25px;">
+                            <!-- Populated by JS -->
+                            <div class="empty-state">
+                                <span class="empty-emoji">🎉</span>
+                                <p>No hay deudas de liquidación pendientes.</p>
+                            </div>
+                        </div>
+
+                        <div class="settlements-section-title" style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-cyan); margin-bottom: 12px; border-top: 1px solid var(--border-color); padding-top: 20px;">Historial de Pagos Realizados (Traza)</div>
+                        
+                        <div class="settlements-history-list" id="list-settlements-history">
+                            <!-- Populated by JS -->
+                            <div class="empty-state-small">
+                                <p>No se han registrado pagos entre miembros todavía.</p>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Tab 4: Balances -->
             <section id="tab-balances" class="tab-section">
                 <article class="card glass-card" id="card-balances">
                     <div class="card-header">
@@ -288,7 +357,7 @@
                 </article>
             </section>
 
-            <!-- Tab 4: Resumen y Auditoría por Persona -->
+            <!-- Tab 5: Resumen y Auditoría por Persona -->
             <section id="tab-audit" class="tab-section">
                 <article class="card glass-card" id="card-audit">
                     <div class="card-header" style="flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center;">
@@ -307,35 +376,6 @@
                         <div class="empty-state">
                             <span class="empty-emoji">👤</span>
                             <p>Cargando información del resumen...</p>
-                        </div>
-                    </div>
-                </article>
-            </section>
-
-            <!-- Tab 5: Payment Proposal -->
-            <section id="tab-settlements" class="tab-section">
-                <!-- Debt Settlement / Payment Proposal -->
-                <article class="card glass-card color-accent" id="card-settlements">
-                    <div class="card-header">
-                        <div class="header-title-wrapper">
-                            <h2>Liquidación de Pagos</h2>
-                            <p class="card-subtitle">Cuentas simplificadas para saldar el viaje</p>
-                        </div>
-                        <button id="btn-copy-proposal" class="btn btn-secondary btn-sm" disabled>
-                            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                            </svg>
-                            <span>Copiar</span>
-                        </button>
-                    </div>
-                    <div class="card-body">
-                        <div class="settlements-list" id="list-settlements">
-                            <!-- Populated by JS -->
-                            <div class="empty-state">
-                                <span class="empty-emoji">🎉</span>
-                                <p>No hay deudas de liquidación pendientes.</p>
-                            </div>
                         </div>
                     </div>
                 </article>

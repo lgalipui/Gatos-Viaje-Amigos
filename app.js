@@ -453,6 +453,9 @@ function updateAppUI() {
 
     // 4. Propuesta de pagos (Liquidación Tab)
     renderSettlementsList(transactions);
+    
+    // 4b. Historial / Traza de liquidaciones
+    renderSettlementsHistory();
 
     // 5. Historial de gastos
     renderExpensesFeed();
@@ -770,24 +773,19 @@ function renderSettlementsList(transactions) {
     transactions.forEach(t => {
         const fromIdx = sortedMembers.indexOf(t.from);
         const toIdx = sortedMembers.indexOf(t.to);
-        const key = `${t.from}_${t.to}_${t.amount.toFixed(2)}`;
-        const isCompleted = completedSettlements.has(key);
 
         const cardWrapper = document.createElement("div");
         cardWrapper.className = "settlement-card-wrapper";
         cardWrapper.innerHTML = `
-            <div class="settlement-card ${isCompleted ? 'is-completed' : ''}">
+            <div class="settlement-card">
                 <div class="settlement-direction">
-                    <div class="settlement-checkbox-wrapper">
-                        <input type="checkbox" class="settle-checkbox" onchange="toggleSettlement('${key}')" ${isCompleted ? 'checked' : ''} title="Marcar como completado">
-                    </div>
                     <div class="settlement-actor">
                         <div class="mini-avatar avatar-${fromIdx !== -1 ? fromIdx % 6 : 0}">${t.from.substring(0, 2).toUpperCase()}</div>
                         <span class="settlement-actor-name" title="${escapeHTML(t.from)}">${escapeHTML(t.from)}</span>
                     </div>
                     <div class="settlement-arrow-wrapper">
                         <div class="settlement-arrow-line"></div>
-                        <span class="settlement-transfer-text">${isCompleted ? 'pagó a' : 'debe pagar'}</span>
+                        <span class="settlement-transfer-text">debe pagar</span>
                     </div>
                     <div class="settlement-actor">
                         <div class="mini-avatar avatar-${toIdx !== -1 ? toIdx % 6 : 0}">${t.to.substring(0, 2).toUpperCase()}</div>
@@ -796,8 +794,20 @@ function renderSettlementsList(transactions) {
                 </div>
                 <div class="settlement-amount-box">
                     <span class="settlement-amount">${t.amount.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€</span>
-                    <div class="settlement-action-hint">${isCompleted ? 'Completado' : 'Bizum / Efectivo'}</div>
-                    <button class="btn-details-toggle" onclick="window.toggleSettlementDetails('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', this)">Ver desglose ▾</button>
+                    <div class="settlement-action-hint">Bizum / Efectivo</div>
+                    
+                    <div class="settlement-card-actions" style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button class="btn btn-success btn-xs" onclick="window.settleProposedTransaction('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', ${t.amount})" title="Liquidar totalmente esta propuesta">Pagar Todo</button>
+                        <button class="btn btn-secondary btn-xs" onclick="window.togglePartialSettleForm(this)" title="Registrar un pago parcial">Pagar Parte</button>
+                        <button class="btn-details-toggle" onclick="window.toggleSettlementDetails('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', this)">Ver desglose ▾</button>
+                    </div>
+
+                    <div class="partial-settle-inline-container" style="display: none; margin-top: 10px; width: 100%; gap: 6px; align-items: center; justify-content: flex-end;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">Cantidad (€):</span>
+                        <input type="number" class="partial-settle-amount-input filter-select" placeholder="0.00" step="0.01" min="0.01" max="${t.amount}" style="width: 80px; padding: 4px 6px; font-size: 0.8rem; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px;">
+                        <button class="btn btn-success btn-xs" style="padding: 4px 8px;" onclick="window.submitPartialSettlement('${escapeHTML(t.from)}', '${escapeHTML(t.to)}', this)">✔</button>
+                        <button class="btn btn-xs" style="padding: 4px 8px; background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--border-color);" onclick="window.togglePartialSettleForm(this)">✘</button>
+                    </div>
                 </div>
             </div>
             <div class="settlement-details-panel" style="display: none;"></div>
@@ -814,18 +824,13 @@ function renderExpensesFeed() {
     const searchQuery = document.getElementById("input-search").value.toLowerCase();
     const payerFilter = document.getElementById("select-filter-payer").value;
 
-    // Obtener filtro de tipo de gasto activo (Todos / Gastos / Pagos)
-    const activeTypeBtn = document.querySelector(".type-filter-btn.active");
-    const activeType = activeTypeBtn ? activeTypeBtn.dataset.type : "all";
-
-    // Filtrar gastos
+    // Filtrar gastos: mostrar estrictamente gastos corrientes de viaje a terceros
     const filteredExpenses = expenses.filter(exp => {
         const matchesSearch = exp.description.toLowerCase().includes(searchQuery) ||
                               exp.payer.toLowerCase().includes(searchQuery);
         const matchesPayer = payerFilter === "all" || exp.payer === payerFilter;
-        const matchesType = activeType === "all" || 
-                            (activeType === "expenses" && !exp.isPayment) ||
-                            (activeType === "payments" && exp.isPayment);
+        // Solo gastos ordinarios, nunca deudas internas/pagos
+        const matchesType = !exp.isPayment;
         return matchesSearch && matchesPayer && matchesType;
     });
 
@@ -923,6 +928,9 @@ function updateFilterDropdowns() {
 
     // También actualizar el selector de la pestaña de auditoría si existe
     populateAuditSelect();
+    
+    // Actualizar los selectores de la liquidación manual
+    populateSettleDropdowns();
 }
 
 // ==========================================================================
@@ -1130,6 +1138,69 @@ function setupEventListeners() {
             e.target.value = ""; // Limpiar input para permitir cargar el mismo archivo
         }
     });
+
+    // Toggle Formulario Liquidación Manual
+    const btnToggleCustomSettle = document.getElementById("btn-toggle-custom-settlement");
+    const formCustomSettle = document.getElementById("form-custom-settlement");
+    if (btnToggleCustomSettle && formCustomSettle) {
+        btnToggleCustomSettle.addEventListener("click", () => {
+            const isVisible = formCustomSettle.style.display === "block";
+            formCustomSettle.style.display = isVisible ? "none" : "block";
+            // Rellenar fecha de hoy por defecto
+            document.getElementById("input-settle-date").value = new Date().toISOString().split("T")[0];
+        });
+    }
+
+    const btnCancelCustomSettle = document.getElementById("btn-cancel-custom-settle");
+    if (btnCancelCustomSettle && formCustomSettle) {
+        btnCancelCustomSettle.addEventListener("click", () => {
+            formCustomSettle.style.display = "none";
+            document.getElementById("settlement-manual-form").reset();
+        });
+    }
+
+    const formSettle = document.getElementById("settlement-manual-form");
+    if (formSettle) {
+        formSettle.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const from = document.getElementById("select-settle-from").value;
+            const to = document.getElementById("select-settle-to").value;
+            const amountVal = parseFloat(document.getElementById("input-settle-amount").value);
+            const date = document.getElementById("input-settle-date").value || new Date().toISOString().split("T")[0];
+
+            if (!from || !to || isNaN(amountVal) || amountVal <= 0) {
+                showToast("Por favor, rellena todos los campos válidos.", "warning");
+                return;
+            }
+
+            if (from === to) {
+                showToast("El deudor y el acreedor no pueden ser la misma persona.", "warning");
+                return;
+            }
+
+            // Registrar el pago
+            const paymentExpense = {
+                id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                description: `Pago: de ${from} a ${to} (Liquidación)`,
+                amount: amountVal,
+                date: date,
+                payer: from,
+                participants: [to],
+                isManual: true,
+                isPayment: true
+            };
+
+            expenses.push(paymentExpense);
+            if (dataSource === "demo") {
+                dataSource = "local";
+            }
+            saveToLocalStorage();
+            updateAppUI();
+            formSettle.reset();
+            formCustomSettle.style.display = "none";
+            showToast(`Registrado pago manual de ${amountVal.toFixed(2)}€ de ${from} a ${to}`);
+        });
+    }
 }
 
 /**
@@ -2487,4 +2558,202 @@ function renderAuditTab(targetMember) {
     container.innerHTML = html;
 }
 
+/**
+ * Rellena los dropdowns del formulario de liquidación manual
+ */
+function populateSettleDropdowns() {
+    const selectFrom = document.getElementById("select-settle-from");
+    const selectTo = document.getElementById("select-settle-to");
+    if (!selectFrom || !selectTo) return;
 
+    const activeFrom = selectFrom.value;
+    const activeTo = selectTo.value;
+
+    selectFrom.innerHTML = '<option value="">Selecciona...</option>';
+    selectTo.innerHTML = '<option value="">Selecciona...</option>';
+
+    Array.from(members).sort().forEach(m => {
+        const optFrom = document.createElement("option");
+        optFrom.value = m;
+        optFrom.textContent = m;
+        selectFrom.appendChild(optFrom);
+
+        const optTo = document.createElement("option");
+        optTo.value = m;
+        optTo.textContent = m;
+        selectTo.appendChild(optTo);
+    });
+
+    if (members.has(activeFrom)) selectFrom.value = activeFrom;
+    if (members.has(activeTo)) selectTo.value = activeTo;
+}
+
+/**
+ * Renderiza la traza (historial) de pagos realizados entre miembros
+ */
+function renderSettlementsHistory() {
+    const container = document.getElementById("list-settlements-history");
+    if (!container) return;
+
+    // Obtener todas las deudas/pagos internos liquidados
+    const completedPayments = expenses.filter(exp => exp.isPayment === true);
+
+    if (completedPayments.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state-small" style="padding: 15px; text-align: center; color: var(--text-muted);">
+                <p>No se han registrado pagos entre miembros todavía.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = "";
+    
+    // Ordenar por fecha y luego ID (más reciente arriba)
+    completedPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    completedPayments.forEach(p => {
+        let dateLabel = p.date;
+        try {
+            const dateParts = p.date.split("-");
+            if (dateParts.length === 3) {
+                dateLabel = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+            }
+        } catch(e) {}
+
+        const item = document.createElement("div");
+        item.className = "settlement-history-item";
+        item.style.display = "flex";
+        item.style.justifyContent = "space-between";
+        item.style.alignItems = "center";
+        item.style.padding = "10px 12px";
+        item.style.background = "rgba(255, 255, 255, 0.02)";
+        item.style.border = "1px solid var(--border-color)";
+        item.style.borderRadius = "var(--radius-sm)";
+        item.style.marginBottom = "8px";
+        item.style.fontSize = "0.8rem";
+
+        const toName = p.participants && p.participants[0] ? p.participants[0] : "Miembro";
+
+        item.innerHTML = `
+            <div class="settlement-history-info" style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-weight: 600; color: var(--text-main);">
+                    💸 ${escapeHTML(p.payer)} pagó a ${escapeHTML(toName)}
+                </span>
+                <span style="font-size: 0.7rem; color: var(--text-muted);">
+                    Fecha: ${dateLabel} ${p.description.toLowerCase().includes("parcial") ? "• Pago Parcial" : "• Pago Completo"}
+                </span>
+            </div>
+            <div class="settlement-history-action" style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-weight: 700; color: var(--success); font-size: 0.85rem;">
+                    ${p.amount.toFixed(2)}€
+                </span>
+                <button class="btn-undo-payment" onclick="window.deletePaymentFromSettlementsHistory('${p.id}', '${escapeHTML(p.payer)}', '${escapeHTML(toName)}', ${p.amount})" style="padding: 4px 8px; font-size: 0.65rem; background: rgba(220,53,69,0.08); color: var(--danger); border: 1px solid rgba(220,53,69,0.15); border-radius: 4px; cursor: pointer; transition: background var(--transition-fast);" title="Deshacer este pago y restaurar las deudas">Deshacer</button>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+/**
+ * Registra un pago completo de una propuesta de liquidación
+ */
+window.settleProposedTransaction = function(from, to, amount) {
+    if (!confirm(`¿Confirmas que ${from} ha pagado ${amount.toFixed(2)}€ a ${to}? Se registrará en el historial.`)) return;
+
+    const paymentExpense = {
+        id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        description: `Pago: de ${from} a ${to} (Liquidación)`,
+        amount: parseFloat(amount),
+        date: new Date().toISOString().split("T")[0],
+        payer: from,
+        participants: [to],
+        isManual: true,
+        isPayment: true
+    };
+
+    expenses.push(paymentExpense);
+    if (dataSource === "demo") {
+        dataSource = "local";
+    }
+    saveToLocalStorage();
+    updateAppUI();
+    showToast(`Registrado pago de ${amount.toFixed(2)}€ de ${from} a ${to}`);
+};
+
+/**
+ * Muestra u oculta el formulario inline de pago parcial de una propuesta
+ */
+window.togglePartialSettleForm = function(btn) {
+    const cardWrapper = btn.closest('.settlement-card-wrapper');
+    if (!cardWrapper) return;
+    const container = cardWrapper.querySelector('.partial-settle-inline-container');
+    if (!container) return;
+    
+    const isVisible = container.style.display === 'flex';
+    container.style.display = isVisible ? 'none' : 'flex';
+    if (!isVisible) {
+        const input = container.querySelector('.partial-settle-amount-input');
+        input.value = "";
+        input.focus();
+    }
+};
+
+/**
+ * Confirma e introduce un pago parcial de una propuesta
+ */
+window.submitPartialSettlement = function(from, to, btn) {
+    const container = btn.closest('.partial-settle-inline-container');
+    if (!container) return;
+    const input = container.querySelector('.partial-settle-amount-input');
+    const amountVal = parseFloat(input.value);
+
+    if (isNaN(amountVal) || amountVal <= 0) {
+        showToast("Por favor, introduce un importe válido.", "warning");
+        return;
+    }
+
+    const maxVal = parseFloat(input.max);
+    if (!isNaN(maxVal) && amountVal > maxVal + 0.01) {
+        if (!confirm(`El importe introducido (${amountVal.toFixed(2)}€) supera la propuesta de deuda (${maxVal.toFixed(2)}€). ¿Registrar pago de todas formas?`)) {
+            return;
+        }
+    }
+
+    const paymentExpense = {
+        id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        description: `Pago parcial: de ${from} a ${to} (Liquidación)`,
+        amount: amountVal,
+        date: new Date().toISOString().split("T")[0],
+        payer: from,
+        participants: [to],
+        isManual: true,
+        isPayment: true
+    };
+
+    expenses.push(paymentExpense);
+    if (dataSource === "demo") {
+        dataSource = "local";
+    }
+    saveToLocalStorage();
+    updateAppUI();
+    showToast(`Registrado pago parcial de ${amountVal.toFixed(2)}€ de ${from} a ${to}`);
+};
+
+/**
+ * Elimina un pago del historial y regenera la propuesta
+ */
+window.deletePaymentFromSettlementsHistory = function(paymentId, debtor, creditor, amount) {
+    if (!confirm(`¿Seguro que quieres deshacer el pago de ${amount.toFixed(2)}€ de ${debtor} a ${creditor}? Se restaurarán las deudas.`)) return;
+
+    const index = expenses.findIndex(e => e.id === paymentId);
+    if (index !== -1) {
+        expenses.splice(index, 1);
+        if (dataSource === "demo") {
+            dataSource = "local";
+        }
+        saveToLocalStorage();
+        updateAppUI();
+        showToast("Pago eliminado y deudas recalculadas.");
+    }
+};
