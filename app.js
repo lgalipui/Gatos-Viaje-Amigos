@@ -770,12 +770,19 @@ function renderExpensesFeed() {
     const searchQuery = document.getElementById("input-search").value.toLowerCase();
     const payerFilter = document.getElementById("select-filter-payer").value;
 
+    // Obtener filtro de tipo de gasto activo (Todos / Gastos / Pagos)
+    const activeTypeBtn = document.querySelector(".type-filter-btn.active");
+    const activeType = activeTypeBtn ? activeTypeBtn.dataset.type : "all";
+
     // Filtrar gastos
     const filteredExpenses = expenses.filter(exp => {
         const matchesSearch = exp.description.toLowerCase().includes(searchQuery) ||
                               exp.payer.toLowerCase().includes(searchQuery);
         const matchesPayer = payerFilter === "all" || exp.payer === payerFilter;
-        return matchesSearch && matchesPayer;
+        const matchesType = activeType === "all" || 
+                            (activeType === "expenses" && !exp.isPayment) ||
+                            (activeType === "payments" && exp.isPayment);
+        return matchesSearch && matchesPayer && matchesType;
     });
 
     if (filteredExpenses.length === 0) {
@@ -895,6 +902,16 @@ function setupEventListeners() {
     // Buscar y filtrar
     document.getElementById("input-search").addEventListener("input", renderExpensesFeed);
     document.getElementById("select-filter-payer").addEventListener("change", renderExpensesFeed);
+
+    // Filtro de tipo de gasto (Segmentado)
+    const typeBtns = document.querySelectorAll(".type-filter-btn");
+    typeBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            typeBtns.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            renderExpensesFeed();
+        });
+    });
 
     // Modales - Abrir Importar
     document.getElementById("btn-import-chat").addEventListener("click", () => {

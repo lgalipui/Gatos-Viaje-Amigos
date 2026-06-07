@@ -2022,3 +2022,46 @@ body.light-theme .expense-card.is-payment {
 .expense-amount-display.amount-payment {
     color: var(--success);
 }
+
+/* Segmented Type Filter */
+.type-filter-row {
+    display: flex;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 3px;
+    margin-top: 10px;
+    width: 100%;
+}
+
+body.light-theme .type-filter-row {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.type-filter-btn {
+    flex: 1;
+    text-align: center;
+    background: transparent;
+    border: none;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.type-filter-btn:hover {
+    color: var(--text-main);
+}
+
+.type-filter-btn.active {
+    color: white;
+    background: var(--primary);
+    box-shadow: 0 2px 6px var(--primary-glow);
+}
+
+body.light-theme .type-filter-btn.active {
+    box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
