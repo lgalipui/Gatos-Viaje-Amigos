@@ -1784,7 +1784,61 @@ function renderSettlementBreakdown(debtor, creditor, panel) {
         !exp.isPayment
     );
 
-    let html = '';
+    // Calcular deudas de debtor por gastos pagados por otros
+    let totalOwedToOthers = 0;
+    expenses.forEach(exp => {
+        if (!exp.isPayment && exp.payer !== debtor && exp.participants && exp.participants.includes(debtor)) {
+            const share = exp.amount / exp.participants.length;
+            // Restar pagos hechos por debtor para este gasto
+            const payments = expenses.filter(p => p.relatedExpenseId === exp.id && p.payer === debtor);
+            const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+            totalOwedToOthers += Math.max(0, share - totalPaid);
+        }
+    });
+
+    // Calcular créditos de debtor por gastos pagados por él
+    let totalCreditFromMyPayments = 0;
+    expenses.forEach(exp => {
+        if (!exp.isPayment && exp.payer === debtor && exp.participants) {
+            const share = exp.amount / exp.participants.length;
+            if (exp.participants.includes(debtor)) {
+                totalCreditFromMyPayments += (exp.amount - share);
+            } else {
+                totalCreditFromMyPayments += exp.amount;
+            }
+            // Restar pagos recibidos de otros para este gasto (si los hubiera)
+            const payments = expenses.filter(p => p.relatedExpenseId === exp.id && p.participants && p.participants.includes(debtor));
+            const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
+            totalCreditFromMyPayments = Math.max(0, totalCreditFromMyPayments - totalReceived);
+        }
+    });
+
+    const finalNetDebt = totalOwedToOthers - totalCreditFromMyPayments;
+    const finalNetDebtVal = Math.abs(finalNetDebt);
+
+    const summaryHTML = `
+        <div class="settlement-breakdown-summary">
+            <div class="summary-row">
+                <span>Deudas por gastos pagados por otros:</span>
+                <span class="value negative">-${totalOwedToOthers.toFixed(2)}€</span>
+            </div>
+            <div class="summary-row">
+                <span>Crédito por gastos pagados por ${escapeHTML(debtor)}:</span>
+                <span class="value positive">+${totalCreditFromMyPayments.toFixed(2)}€</span>
+            </div>
+            <div class="summary-row total">
+                <span>Saldo Neto Pendiente:</span>
+                <span class="value ${finalNetDebt > 0.019 ? 'negative' : (finalNetDebt < -0.019 ? 'positive' : 'neutral')}">
+                    ${finalNetDebt > 0.019 ? '-' : (finalNetDebt < -0.019 ? '+' : '')}${finalNetDebtVal.toFixed(2)}€
+                </span>
+            </div>
+            <p class="summary-help-text">
+                *Nota: Mediante la simplificación de cuentas, este saldo neto de <strong>${finalNetDebtVal.toFixed(2)}€</strong> se liquida realizando una transferencia de ese importe a <strong>${escapeHTML(creditor)}</strong>.
+            </p>
+        </div>
+    `;
+
+    let html = summaryHTML;
 
     // Genera el HTML de un item de gasto con su estado de pago
     const getExpenseItemHTML = (exp) => {

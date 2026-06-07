@@ -2259,3 +2259,60 @@ body.light-theme .audit-item {
     color: var(--text-muted);
 }
 
+/* Settlement breakdown summary card */
+.settlement-breakdown-summary {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 14px;
+    font-size: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+body.light-theme .settlement-breakdown-summary {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.settlement-breakdown-summary .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.settlement-breakdown-summary .summary-row.total {
+    border-top: 1px dashed var(--border-color);
+    padding-top: 6px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--text-main);
+}
+
+.settlement-breakdown-summary .value {
+    font-weight: 600;
+}
+
+.settlement-breakdown-summary .value.positive {
+    color: var(--success);
+}
+
+.settlement-breakdown-summary .value.negative {
+    color: var(--danger);
+}
+
+.settlement-breakdown-summary .value.neutral {
+    color: var(--text-muted);
+}
+
+.settlement-breakdown-summary .summary-help-text {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.3;
+}
+
+
