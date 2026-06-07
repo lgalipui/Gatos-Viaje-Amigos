@@ -1358,14 +1358,70 @@ window.deleteMember = function(name) {
 };
 
 window.toggleSettlement = function(key) {
-    if (completedSettlements.has(key)) {
-        completedSettlements.delete(key);
-    } else {
+    const parts = key.split("_");
+    if (parts.length < 3) return;
+    
+    const from = parts[0];
+    const to = parts[1];
+    const amount = parseFloat(parts[2]);
+    
+    if (isNaN(amount) || amount <= 0) return;
+
+    const isChecking = !completedSettlements.has(key);
+
+    if (isChecking) {
+        if (!confirm(`¿Confirmas que ${from} ha pagado ${amount.toFixed(2)}€ a ${to}? Se registrará este pago en el historial y se actualizarán los saldos.`)) {
+            // Re-renderizar para desmarcar el checkbox en el DOM
+            updateAppUI();
+            return;
+        }
+
+        // Crear el pago real en la lista de gastos
+        const paymentExpense = {
+            id: 'pay_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            description: `Pago: de ${from} a ${to} (Liquidación)`,
+            amount: amount,
+            date: new Date().toISOString().split("T")[0],
+            payer: from,
+            participants: [to],
+            isManual: true,
+            isPayment: true
+        };
+
+        expenses.push(paymentExpense);
         completedSettlements.add(key);
+        
+        if (dataSource === "demo") {
+            dataSource = "local";
+        }
+        
+        saveToLocalStorage();
+        updateAppUI();
+        showToast(`Registrado pago de ${amount.toFixed(2)}€ de ${from} a ${to}. ¡Saldos actualizados!`);
+    } else {
+        // Si se quiere desmarcar, buscamos el pago equivalente en la lista de gastos y lo eliminamos
+        const index = expenses.findIndex(e => e.isPayment && e.payer === from && e.participants && e.participants[0] === to && Math.abs(e.amount - amount) < 0.019);
+        if (index !== -1) {
+            if (confirm(`¿Quieres eliminar el pago registrado de ${amount.toFixed(2)}€ de ${from} a ${to} y restaurar la deuda?`)) {
+                expenses.splice(index, 1);
+                completedSettlements.delete(key);
+                
+                if (dataSource === "demo") {
+                    dataSource = "local";
+                }
+                
+                saveToLocalStorage();
+                updateAppUI();
+                showToast("Pago eliminado y deudas restauradas");
+            } else {
+                updateAppUI();
+            }
+        } else {
+            completedSettlements.delete(key);
+            saveToLocalStorage();
+            updateAppUI();
+        }
     }
-    saveToLocalStorage();
-    const { transactions } = solveDebts();
-    renderSettlementsList(transactions);
 };
 
 /**
