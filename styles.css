@@ -1175,6 +1175,19 @@ textarea#textarea-chat:focus {
     gap: 12px;
 }
 
+.form-group input[readonly] {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: rgba(0, 0, 0, 0.15);
+}
+.form-group input[readonly]:focus {
+    border-color: var(--border-color) !important;
+}
+body.light-theme .form-group input[readonly] {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+
 /* Checkboxes List for splitting expenses */
 .participants-checkbox-list {
     display: grid;

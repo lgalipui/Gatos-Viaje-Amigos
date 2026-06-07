@@ -474,6 +474,49 @@
         </div>
     </div>
 
+    <!-- Modal 2b: Edit Payment (Settlement) -->
+    <div class="modal-overlay" id="modal-edit-payment">
+        <div class="modal glass-modal">
+            <div class="modal-header">
+                <h3>Editar Pago / Liquidación</h3>
+                <button class="btn-close" id="btn-close-edit-payment">×</button>
+            </div>
+            <form id="form-edit-payment" onsubmit="event.preventDefault();">
+                <input type="hidden" id="edit-payment-id">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Deudor (Paga)</label>
+                            <input type="text" id="edit-payment-payer" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Acreedor (Recibe)</label>
+                            <input type="text" id="edit-payment-receiver" readonly>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-payment-concept" id="lbl-edit-payment-concept">Concepto / Comentario</label>
+                        <input type="text" id="edit-payment-concept" placeholder="Ej. Bizum, Pago de comida..." required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-payment-amount">Importe (€)</label>
+                            <input type="number" id="edit-payment-amount" step="0.01" min="0.01" placeholder="0.00" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-payment-date">Fecha</label>
+                            <input type="date" id="edit-payment-date" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="btn-cancel-edit-payment">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btn-save-edit-payment">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal 3: Share and Backup Options -->
     <div class="modal-overlay" id="modal-share">
         <div class="modal glass-modal">

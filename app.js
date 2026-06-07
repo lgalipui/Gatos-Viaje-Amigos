@@ -1081,6 +1081,13 @@ function setupEventListeners() {
     // Guardar Gasto Manual
     document.getElementById("form-expense").addEventListener("submit", saveExpenseForm);
 
+    // Modal Editar Pago - Cerrar
+    document.getElementById("btn-close-edit-payment").addEventListener("click", () => closeModal("modal-edit-payment"));
+    document.getElementById("btn-cancel-edit-payment").addEventListener("click", () => closeModal("modal-edit-payment"));
+
+    // Guardar Pago Modificado
+    document.getElementById("form-edit-payment").addEventListener("submit", saveEditPaymentForm);
+
     // Añadir Miembro Manual
     document.getElementById("form-add-member").addEventListener("submit", (e) => {
         e.preventDefault();
@@ -1389,6 +1396,116 @@ function saveExpenseForm() {
     saveToLocalStorage();
     updateAppUI();
     closeModal("modal-expense");
+}
+
+/**
+ * Abre el modal de edición de pagos
+ */
+window.openEditPaymentModal = function(id) {
+    const p = expenses.find(e => e.id === id);
+    if (!p) return;
+
+    document.getElementById("edit-payment-id").value = p.id;
+    document.getElementById("edit-payment-payer").value = p.payer;
+    document.getElementById("edit-payment-receiver").value = (p.participants && p.participants[0]) ? p.participants[0] : "";
+    
+    // Extraer concepto o comentario original
+    let rawText = "";
+    const isBreakdown = !!p.relatedExpenseId || (p.description && p.description.includes(' por "'));
+    
+    const lblConcept = document.getElementById("lbl-edit-payment-concept");
+    if (isBreakdown) {
+        lblConcept.textContent = "Concepto de gasto (Desglose)";
+        rawText = p.expenseConcept || "";
+        if (!rawText && p.relatedExpenseId) {
+            const origExp = expenses.find(e => e.id === p.relatedExpenseId);
+            if (origExp) rawText = origExp.description;
+        }
+        if (!rawText) {
+            const desc = p.description || "";
+            const porIndex = desc.indexOf(' por "');
+            if (porIndex !== -1) {
+                rawText = desc.substring(porIndex + 6, desc.length - 1);
+            }
+        }
+    } else {
+        lblConcept.textContent = "Comentario registrado";
+        rawText = p.comment || "";
+        if (!rawText) {
+            const desc = p.description || "";
+            const openParen = desc.indexOf(' (');
+            const closeParen = desc.lastIndexOf(')');
+            if (openParen !== -1 && closeParen !== -1 && closeParen > openParen) {
+                const comment = desc.substring(openParen + 2, closeParen);
+                if (comment !== "Liquidación") {
+                    rawText = comment;
+                }
+            }
+        }
+    }
+
+    document.getElementById("edit-payment-concept").value = rawText;
+    document.getElementById("edit-payment-amount").value = p.amount;
+    document.getElementById("edit-payment-date").value = p.date || new Date().toISOString().split("T")[0];
+
+    openModal("modal-edit-payment");
+};
+
+/**
+ * Guarda los cambios de la edición de pagos
+ */
+function saveEditPaymentForm() {
+    const id = document.getElementById("edit-payment-id").value;
+    const concept = document.getElementById("edit-payment-concept").value.trim();
+    const amountVal = parseFloat(document.getElementById("edit-payment-amount").value);
+    const date = document.getElementById("edit-payment-date").value;
+
+    if (isNaN(amountVal) || amountVal <= 0) {
+        showToast("El importe debe ser mayor que cero", "warning");
+        return;
+    }
+
+    const idx = expenses.findIndex(e => e.id === id);
+    if (idx !== -1) {
+        const p = expenses[idx];
+        const isBreakdown = !!p.relatedExpenseId || (p.description && p.description.includes(' por "'));
+        
+        let newDescription = p.description;
+        const payer = p.payer;
+        const receiver = p.participants && p.participants[0] ? p.participants[0] : "";
+
+        if (isBreakdown) {
+            // Actualizar concepto de desglose
+            p.expenseConcept = concept;
+            newDescription = `Pago: de ${payer} a ${receiver} por "${concept}"`;
+        } else {
+            // Actualizar comentario manual/propuesta
+            p.comment = concept;
+            if (concept) {
+                newDescription = `Pago: de ${payer} a ${receiver} (${concept})`;
+            } else {
+                newDescription = `Pago: de ${payer} a ${receiver} (Liquidación)`;
+            }
+        }
+
+        expenses[idx] = {
+            ...p,
+            description: newDescription,
+            amount: Math.round(amountVal * 100) / 100,
+            date: date
+        };
+
+        if (dataSource === "demo") {
+            dataSource = "local";
+        }
+
+        saveToLocalStorage();
+        updateAppUI();
+        closeModal("modal-edit-payment");
+        showToast("Registro de liquidación actualizado correctamente");
+    } else {
+        showToast("No se encontró el registro de pago", "danger");
+    }
 }
 
 /**
@@ -2696,10 +2813,11 @@ function renderSettlementsHistory() {
                     ${explanation ? `• <strong style="color: var(--accent-cyan); font-weight: 700;">${escapeHTML(explanation)}</strong>` : ''}
                 </span>
             </div>
-            <div class="settlement-history-action" style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-weight: 700; color: var(--success); font-size: 0.85rem;">
+            <div class="settlement-history-action" style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; color: var(--success); font-size: 0.85rem; margin-right: 4px;">
                     ${p.amount.toFixed(2)}€
                 </span>
+                <button class="btn-edit-payment" onclick="window.openEditPaymentModal('${p.id}')" style="padding: 4px 8px; font-size: 0.65rem; background: rgba(6,182,212,0.08); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.15); border-radius: 4px; cursor: pointer; transition: background var(--transition-fast);" title="Editar este pago">Editar</button>
                 <button class="btn-undo-payment" onclick="window.deletePaymentFromSettlementsHistory('${p.id}', '${escapeHTML(p.payer)}', '${escapeHTML(toName)}', ${p.amount})" style="padding: 4px 8px; font-size: 0.65rem; background: rgba(220,53,69,0.08); color: var(--danger); border: 1px solid rgba(220,53,69,0.15); border-radius: 4px; cursor: pointer; transition: background var(--transition-fast);" title="Deshacer este pago y restaurar las deudas">Deshacer</button>
             </div>
         `;
